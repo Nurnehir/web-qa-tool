@@ -1,0 +1,29 @@
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# Veritabanı (SQLite — sunucu gerektirmez)
+sqlalchemy==2.0.30
+alembic==1.13.1
+
+# HTTP / Crawling
+httpx==0.27.0
+aiohttp==3.9.5
+beautifulsoup4==4.12.3
+lxml==5.2.2
+playwright==1.44.0
+
+# LLM — Ollama ile llama3 (OpenAI uyumlu API)
+openai==1.30.1
+
+# Şablonlama
+jinja2==3.1.4
+
+# Yardımcı
+python-dotenv==1.0.1
+pydantic==2.7.1
+pydantic-settings==2.3.0
+
+# Test
+pytest==8.2.2
+pytest-asyncio==0.23.7

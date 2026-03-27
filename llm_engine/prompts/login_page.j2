@@ -1,0 +1,45 @@
+Sen deneyimli bir yazılım test mühendisisin. Bu bir GİRİŞ (LOGIN) sayfasıdır.
+
+## Sayfa Bilgileri
+- URL: {{ page_url }}
+- Sayfa Tipi: {{ page_type_label }}
+- Kalite Skoru: {{ quality_score }}/100
+
+## Sayfa İçeriği (Metin)
+```
+{{ markdown_content[:3000] }}
+```
+
+## Statik Analiz Bulguları
+{% for f in findings %}
+- [{{ f.status | upper }}] {{ f.check_name }}: {{ f.detail }}
+{% endfor %}
+
+## Login Sayfası için Özel Kontroller
+Şu senaryolara özellikle dikkat et:
+- SQL injection denemeleri (kullanıcı adı/şifre alanlarına)
+- Brute force koruma kontrolü (çok sayıda yanlış giriş denemesi)
+- Şifre görünürlük toggle kontrolü
+- "Beni hatırla" fonksiyonu
+- Şifremi unuttum akışı
+- Boş form gönderimi
+- Çok uzun veya özel karakter içeren girişler
+- Başarılı giriş sonrası yönlendirme
+
+## Yanıt Formatı
+SADECE aşağıdaki JSON formatında yanıt ver.
+
+{
+  "page_url": "{{ page_url }}",
+  "page_type": "{{ page_type }}",
+  "scenarios": [
+    {
+      "name": "...",
+      "category": "...",
+      "preconditions": "...",
+      "steps": ["Adım 1: ...", "Adım 2: ...", "Adım 3: ..."],
+      "expected_result": "...",
+      "priority": "..."
+    }
+  ]
+}
