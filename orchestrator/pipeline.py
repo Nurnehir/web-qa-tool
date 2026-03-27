@@ -58,14 +58,25 @@ def run_analysis(job_id: int, target_url: str,
         seo_checker = SEOChecker()
         classifier = PageClassifier()
 
+        # Güvenlik başlıkları domain başına bir kez kontrol edilir
+        from urllib.parse import urlparse
+        checked_domains: set = set()
+        domain_sec_results: dict = {}
+
         for page_record, cp in page_records:
             if cp.error:
                 continue
             print(f"[JOB {job_id}] Analiz: {cp.url}")
             all_findings = []
 
-            # Güvenlik başlıkları
-            for r in security_analyzer.analyze(cp.url):
+            # Güvenlik başlıkları — aynı domain için tekrar istek atma
+            domain = urlparse(cp.url).netloc
+            if domain not in checked_domains:
+                checked_domains.add(domain)
+                domain_sec_results[domain] = security_analyzer.analyze(cp.url)
+                print(f"[JOB {job_id}] Güvenlik başlıkları kontrol edildi: {domain}")
+
+            for r in domain_sec_results[domain]:
                 f = crud.save_finding(
                     db=db, page_id=page_record.id,
                     category="security", check_name=r.check_name,

@@ -63,9 +63,10 @@ class CloudflareCrawler:
         with httpx.Client(timeout=60.0) as client:
             while queue and len(results) < max_pages:
                 url, depth = queue.pop(0)
-                if url in visited:
+                normalized = self._normalize_url(url)
+                if normalized in visited:
                     continue
-                visited.add(url)
+                visited.add(normalized)
 
                 print(f"[Cloudflare] Taranıyor ({len(results)+1}/{max_pages}): {url}")
                 page = self._render_page(client, url)
@@ -80,7 +81,7 @@ class CloudflareCrawler:
                     links = self._extract_links(page.html, url, base_domain)
                     page.links = links
                     for link in links:
-                        if link not in visited:
+                        if self._normalize_url(link) not in visited:
                             queue.append((link, depth + 1))
 
                 # Rate limit koruması
@@ -160,6 +161,25 @@ class CloudflareCrawler:
 
         print(f"[WARN] Job zaman aşımı: {job_id}")
         return None
+
+    def _normalize_url(self, url: str) -> str:
+        """
+        URL'yi normalleştirir — aynı sayfanın farklı yazımlarını birleştirir.
+        Örnekler:
+          books.toscrape.com        → books.toscrape.com/
+          books.toscrape.com/       → books.toscrape.com/
+          books.toscrape.com/index.html → books.toscrape.com/
+          foo.com/bar/index.html    → foo.com/bar/
+        """
+        parsed = urlparse(url)
+        path = parsed.path or "/"
+        # /index.html veya /index.htm → üst dizin
+        if path.endswith(("/index.html", "/index.htm")):
+            path = path[: path.rfind("/") + 1]
+        # Trailing slash — her zaman sonunda slash olsun
+        if not path.endswith("/"):
+            path = path + "/"
+        return f"{parsed.scheme}://{parsed.netloc}{path}"
 
     def _extract_links(self, html: str, base_url: str, base_domain: str) -> List[str]:
         """HTML'den aynı domain'e ait linkleri çıkarır."""
