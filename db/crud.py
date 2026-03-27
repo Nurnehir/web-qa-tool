@@ -32,9 +32,11 @@ def save_page(db: Session, job_id: int, url: str, html: str,
 def save_finding(db: Session, page_id: int, category: str,
                  check_name: str, severity: str, status: str,
                  detail: str, owasp_ref: str = None) -> models.Finding:
+    # severity string'i enum objesine çevir ("high" → FindingSeverity.HIGH)
+    severity_enum = models.FindingSeverity(severity.lower())
     finding = models.Finding(
         page_id=page_id, category=category, check_name=check_name,
-        severity=severity, status=status, detail=detail, owasp_ref=owasp_ref
+        severity=severity_enum, status=status, detail=detail, owasp_ref=owasp_ref
     )
     db.add(finding)
     db.commit()
@@ -45,10 +47,11 @@ def save_finding(db: Session, page_id: int, category: str,
 def save_scenario(db: Session, page_id: int, name: str, category: str,
                   preconditions: str, steps: list,
                   expected: str, priority: str) -> models.TestScenario:
+    priority_enum = models.ScenarioPriority(priority.lower())
     scenario = models.TestScenario(
         page_id=page_id, scenario_name=name, category=category,
         preconditions=preconditions, steps=steps,
-        expected_result=expected, priority=priority
+        expected_result=expected, priority=priority_enum
     )
     db.add(scenario)
     db.commit()
