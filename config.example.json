@@ -1,0 +1,8 @@
+{
+  "cloudflare_token": "YOUR_CLOUDFLARE_API_TOKEN",
+  "cloudflare_account_id": "YOUR_CLOUDFLARE_ACCOUNT_ID",
+  "target_url": "https://example.com/",
+  "ollama_model": "llama3",
+  "ollama_url": "http://localhost:11434",
+  "max_pages": 50
+}

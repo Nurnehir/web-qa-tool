@@ -1,0 +1,9 @@
+httpx
+beautifulsoup4
+lxml
+markdownify
+ollama
+jinja2
+flask
+
+

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LynxTest Raporu - {{ meta.generated_at[:10] }}</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-800);
+            background: var(--gray-100);
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary), #1e40af);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            opacity: 0.9;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        
+        .summary-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .summary-card .label {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+        }
+        
+        .grade {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .grade-A { background: var(--success); }
+        .grade-B { background: #22c55e; }
+        .grade-C { background: var(--warning); }
+        .grade-D { background: var(--danger); }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        
+        .page-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .page-header {
+            background: var(--gray-100);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .page-header:hover {
+            background: var(--gray-200);
+        }
+        
+        .page-title {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        .page-url {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            word-break: break-all;
+        }
+        
+        .page-content {
+            padding: 1rem;
+            display: none;
+        }
+        
+        .page-card.active .page-content {
+            display: block;
+        }
+        
+        .metrics-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .metric {
+            flex: 1;
+            min-width: 150px;
+            padding: 1rem;
+            background: var(--gray-100);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .metric .label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+        }
+        
+        .header-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .header-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--gray-100);
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        
+        .header-item .icon {
+            font-size: 1rem;
+        }
+        
+        .broken-links {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .broken-link {
+            padding: 0.5rem;
+            background: #fee2e2;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            word-break: break-all;
+        }
+        
+        .scenario {
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: var(--gray-100);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .scenario.high { border-color: var(--danger); }
+        .scenario.medium { border-color: var(--warning); }
+        .scenario.low { border-color: var(--success); }
+        
+        .scenario-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .scenario-steps {
+            list-style-position: inside;
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-bottom: 0.5rem;
+        }
+        
+        .scenario-expected {
+            font-size: 0.875rem;
+            color: var(--gray-800);
+            font-style: italic;
+        }
+        
+        .no-content {
+            text-align: center;
+            color: var(--gray-600);
+            padding: 2rem;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 LynxTest Raporu</h1>
+            <p>Oluşturulma: {{ meta.generated_at[:19].replace('T', ' ') }}</p>
+        </header>
+        
+        <!-- Özet Kartları -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="value">{{ summary.total_pages }}</div>
+                <div class="label">Toplam Sayfa</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.pages_analyzed }}</div>
+                <div class="label">Analiz Edilen</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.total_broken_links }}</div>
+                <div class="label">Kırık Link</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.total_scenarios }}</div>
+                <div class="label">Test Senaryosu</div>
+            </div>
+            <div class="summary-card">
+                <div class="value"><span class="grade grade-{{ summary.grades.overall }}">{{ summary.grades.overall }}</span></div>
+                <div class="label">Genel Not</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.average_scores.overall }}%</div>
+                <div class="label">Genel Skor</div>
+            </div>
+        </div>
+        
+        <!-- Skor Dağılımı -->
+        <div class="section">
+            <h2>📊 Skor Dağılımı</h2>
+            <div class="metrics-row">
+                <div class="metric">
+                    <div class="value" style="color: {% if summary.average_scores.security >= 60 %}var(--success){% else %}var(--danger){% endif %}">
+                        {{ summary.average_scores.security }}%
+                    </div>
+                    <div class="label">Güvenlik Skoru</div>
+                </div>
+                <div class="metric">
+                    <div class="value" style="color: {% if summary.average_scores.seo >= 60 %}var(--success){% else %}var(--warning){% endif %}">
+                        {{ summary.average_scores.seo }}%
+                    </div>
+                    <div class="label">SEO Skoru</div>
+                </div>
+                <div class="metric">
+                    <div class="value" style="color: {% if summary.average_scores.overall >= 60 %}var(--success){% else %}var(--warning){% endif %}">
+                        {{ summary.average_scores.overall }}%
+                    </div>
+                    <div class="label">Genel Skor</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sayfa Detayları -->
+        <div class="section">
+            <h2>📄 Sayfa Detayları</h2>
+            
+            {% for page in pages %}
+            {% if page.has_content %}
+            <div class="page-card" id="page-{{ page.id }}">
+                <div class="page-header" onclick="togglePage({{ page.id }})">
+                    <div>
+                        <div class="page-title">
+                            {{ page.title or 'Başlıksız Sayfa' }}
+                            {% if page.analysis.overall_score %}
+                            <span class="grade grade-{{ page.analysis.overall_score.grade }}" style="width:24px;height:24px;line-height:24px;font-size:0.75rem;">
+                                {{ page.analysis.overall_score.grade }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="page-url">{{ page.url }}</div>
+                    </div>
+                    <div>
+                        <span class="badge badge-info">{{ page.scenarios|length }} senaryo</span>
+                        {% if page.analysis.broken_links %}
+                        <span class="badge badge-danger">{{ page.analysis.broken_links|length }} kırık link</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="page-content">
+                    <!-- Skorlar -->
+                    {% if page.analysis.overall_score %}
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <div class="value">{{ page.analysis.overall_score.breakdown.security }}%</div>
+                            <div class="label">Güvenlik</div>
+                        </div>
+                        <div class="metric">
+                            <div class="value">{{ page.analysis.overall_score.breakdown.links }}%</div>
+                            <div class="label">Linkler</div>
+                        </div>
+                        <div class="metric">
+                            <div class="value">{{ page.analysis.overall_score.breakdown.seo }}%</div>
+                            <div class="label">SEO</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Güvenlik Başlıkları -->
+                    {% if page.analysis.headers %}
+                    <h4 style="margin: 1rem 0 0.5rem;">🔒 Güvenlik Başlıkları</h4>
+                    <div class="header-list">
+                        {% for header, exists in page.analysis.headers.summary.items() %}
+                        <div class="header-item">
+                            <span class="icon">{% if exists %}✅{% else %}❌{% endif %}</span>
+                            <span>{{ header.replace('_', '-') }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Kırık Linkler -->
+                    {% if page.analysis.broken_links %}
+                    <h4 style="margin: 1rem 0 0.5rem;">🔗 Kırık Linkler ({{ page.analysis.broken_links|length }})</h4>
+                    <div class="broken-links">
+                        {% for link in page.analysis.broken_links[:10] %}
+                        <div class="broken-link">
+                            {{ link.url }} - <strong>{{ link.error }}</strong>
+                        </div>
+                        {% endfor %}
+                        {% if page.analysis.broken_links|length > 10 %}
+                        <div style="text-align:center;color:var(--gray-600);padding:0.5rem;">
+                            ... ve {{ page.analysis.broken_links|length - 10 }} tane daha
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Test Senaryoları -->
+                    {% if page.scenarios %}
+                    <h4 style="margin: 1rem 0 0.5rem;">🧪 Test Senaryoları ({{ page.scenarios|length }})</h4>
+                    {% for scenario in page.scenarios %}
+                    <div class="scenario {{ scenario.priority }}">
+                        <div class="scenario-title">
+                            {% if scenario.priority == 'high' %}🔴
+                            {% elif scenario.priority == 'medium' %}🟡
+                            {% else %}🟢{% endif %}
+                            {{ scenario.title }}
+                        </div>
+                        <ol class="scenario-steps">
+                            {% for step in scenario.steps %}
+                            <li>{{ step }}</li>
+                            {% endfor %}
+                        </ol>
+                        <div class="scenario-expected">
+                            <strong>Beklenen:</strong> {{ scenario.expected }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="no-content">Test senaryosu üretilmedi</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        
+        <footer>
+            <p>LynxTest v1.0.0 - Cloudflare Browser Rendering &amp; Llama3 ile üretildi</p>
+        </footer>
+    </div>
+    
+    <script>
+        function togglePage(id) {
+            const card = document.getElementById('page-' + id);
+            card.classList.toggle('active');
+        }
+        
+        // İlk sayfayı otomatik aç
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstCard = document.querySelector('.page-card');
+            if (firstCard) firstCard.classList.add('active');
+        });
+    </script>
+</body>
+</html>

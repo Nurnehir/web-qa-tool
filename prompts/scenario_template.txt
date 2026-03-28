@@ -1,0 +1,61 @@
+Sen deneyimli bir QA automation engineer'ısın. Aşağıdaki web sayfası için ACTIONABLE test senaryoları üret.
+
+SAYFA BİLGİLERİ:
+URL: {url}
+Başlık: {title}
+Güvenlik: CSP {csp_status}, HSTS {hsts_status}
+SEO: H1={h1_count}, Meta={meta_description_status}
+Kırık Linkler: {broken_links}
+
+İçerik:
+{markdown_content}
+
+ÖNEMLİ KURALLAR:
+1. Her senaryo SPESİFİK olmalı (Generic "Test Security" DEĞİL, "CSP başlığının varlığını doğrula" gibi)
+2. Steps içine metadata YAZMA (Title:, Priority: gibi)
+3. Steps her biri executable bir adım olmalı
+4. Priority'yi analiz verisine göre belirle (missing CSP = high, broken links = medium)
+5. Markdown işaretlerini temizle (** kullanma)
+6. TÜM senaryoları TEK BİR JSON ARRAY içinde döndür
+
+YANIT FORMATI - SADECE BU FORMATTA JSON ARRAY (başka açıklama, başlık veya text ekleme!):
+```json
+[
+  {{
+    "scenario_id": 1,
+    "title": "Content Security Policy başlığının eksikliğini test et",
+    "steps": [
+      "Chrome DevTools'u aç (F12)",
+      "Network tab'ına git",
+      "Sayfayı yenile (Ctrl+R)",
+      "Response Headers'da 'content-security-policy' ara",
+      "Başlığın mevcut olmadığını doğrula"
+    ],
+    "expected": "CSP başlığı eksik olduğu için XSS saldırılarına açık",
+    "priority": "high"
+  }},
+  {{
+    "scenario_id": 2,
+    "title": "Sosyal medya linklerinin bot protection'ını test et",
+    "steps": [
+      "LinkedIn profil linkine tıkla",
+      "HTTP 999 veya 403 hatası aldığını gözlemle",
+      "User-Agent header ekleyerek curl ile tekrar dene",
+      "Farklı browser'lardan erişimi test et"
+    ],
+    "expected": "Bot protection nedeniyle LinkedIn/Medium linkleri bazı durumlarda 403/999 dönebilir",
+    "priority": "medium"
+  }},
+  {{
+    "scenario_id": 3,
+    "title": "Üçüncü senaryo başlığı",
+    "steps": ["adım1", "adım2"],
+    "expected": "beklenen sonuç",
+    "priority": "low"
+  }}
+]
+```
+
+ÖNEMLİ: Yukarıdaki gibi TÜM senaryoları tek bir JSON array içinde, tek bir ```json bloğunda döndür. Her senaryo için ayrı blok AÇMA!
+
+Şimdi 3-4 senaryo üret.
