@@ -122,6 +122,29 @@
             padding-bottom: 0.5rem;
             border-bottom: 2px solid var(--gray-200);
         }
+
+        .summary-table-wrap {
+            overflow-x: auto;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            border: 1px solid var(--gray-200);
+            padding: 0.6rem 0.7rem;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .summary-table th {
+            background: var(--gray-100);
+            font-weight: 700;
+        }
         
         .page-card {
             border: 1px solid var(--gray-200);
@@ -312,6 +335,46 @@
             <div class="summary-card">
                 <div class="value">{{ summary.average_scores.overall }}%</div>
                 <div class="label">Genel Skor</div>
+            </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="section">
+            <h2>📋 Summary Table</h2>
+            <div class="summary-table-wrap">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>website</th>
+                            <th>total_pages</th>
+                            <th>crawl_time</th>
+                            <th>broken_links</th>
+                            <th>forms</th>
+                            <th>buttons</th>
+                            <th>inputs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set rows = summary_table or summary.summary_table or [] %}
+                        {% if rows %}
+                            {% for row in rows %}
+                            <tr>
+                                <td>{{ row.website }}</td>
+                                <td>{{ row.total_pages }}</td>
+                                <td>{{ row.crawl_time }}</td>
+                                <td>{{ row.broken_links }}</td>
+                                <td>{{ row.forms }}</td>
+                                <td>{{ row.buttons }}</td>
+                                <td>{{ row.inputs }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7">Summary verisi bulunamadı.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
         </div>
         

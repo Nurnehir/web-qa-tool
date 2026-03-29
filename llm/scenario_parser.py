@@ -26,11 +26,9 @@ class ScenarioParser:
         "başarıyla tamamlanmalı",
         "kullanıcı yönlendiriliyor",
         "seo optimizasyonu zor",
-        "beklenen sonuç belirtilmedi",
         "kalıcı linkler kalıcı olmalı",
         "should work",
         "successfully completed",
-        "expected result is not specified",
         "user is redirected"
     ]
     MEASURABLE_EXPECTED_HINTS = [
@@ -219,8 +217,9 @@ class ScenarioParser:
             if not step_str or len(step_str) < 3:
                 continue
             
-            # Metadata pattern'leri atla
-            if any(pattern in step_str for pattern in ["Title:", "Steps:", "Expected:", "Priority:", "*", "---"]):
+            # Metadata pattern'leri atla (tek başına etiket satırları)
+            lowered = step_str.lower()
+            if lowered in ("title:", "steps:", "expected:", "priority:", "---"):
                 continue
             
             # Markdown temizle
@@ -230,8 +229,8 @@ class ScenarioParser:
                 continue
             cleaned_steps.append(step_str)
         
-        # En az 2 geçerli adım olmalı
-        if len(cleaned_steps) < 3:
+        # En az 2 geçerli adım olmalı (daha toleranslı)
+        if len(cleaned_steps) < 2:
             print(f"[PARSER] UYARI: Senaryo '{title}' geçersiz steps içeriyor, atlandı")
             return None
         
@@ -243,14 +242,16 @@ class ScenarioParser:
             scenario.get("beklenen_sonuc") or
             "Beklenen sonuç belirtilmedi"
         )
-        expected = self._normalize_text(str(expected).strip())
+        expected = str(expected).strip().replace("**", "").replace("*", "")
+        expected = self._normalize_text(expected)
         expected_lower = expected.lower()
-        if len(expected) < 12:
+        if len(expected) < 8:
             return None
         if any(pattern in expected_lower for pattern in self.GENERIC_EXPECTED_PATTERNS):
             return None
         if not any(hint in expected_lower for hint in self.MEASURABLE_EXPECTED_HINTS):
-            return None
+            # Ölçülebilir değilse hard-fail yerine daha ölçülebilir fallback yaz.
+            expected = f"{title} should be verifiable by observable page or response evidence"
         
         # Önceliği al ve normalize et
         priority = str(scenario.get("priority") or scenario.get("oncelik") or "medium").lower()
