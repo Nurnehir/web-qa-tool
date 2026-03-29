@@ -21,7 +21,13 @@ class AnalyzerRunner:
     sonuçları birleştirip output/analysis/ klasörüne kaydeder.
     """
     
-    def __init__(self, pages_dir: str = "output/pages", analysis_dir: str = "output/analysis"):
+    def __init__(
+        self,
+        pages_dir: str = "output/pages",
+        analysis_dir: str = "output/analysis",
+        verbose: bool = True,
+        link_checker_options: Dict[str, Any] = None
+    ):
         """
         AnalyzerRunner sınıfını başlatır.
         
@@ -31,10 +37,11 @@ class AnalyzerRunner:
         """
         self.pages_dir = pages_dir
         self.analysis_dir = analysis_dir
+        self.verbose = verbose
         
         # Checker'ları başlat
         self.header_checker = HeaderChecker()
-        self.link_checker = LinkChecker()
+        self.link_checker = LinkChecker(verbose=verbose, **(link_checker_options or {}))
         self.seo_checker = SEOChecker()
         
         # Çıktı klasörünü oluştur
@@ -61,11 +68,12 @@ class AnalyzerRunner:
             return saved_files
         
         print(f"[ANALYZER] {len(page_files)} sayfa analiz edilecek...")
-        print("=" * 50)
+        if self.verbose:
+            print("=" * 50)
         
         for index, page_file in enumerate(page_files, start=1):
             try:
-                print(f"\n[ANALYZER] [{index}/{len(page_files)}] Analiz ediliyor: {os.path.basename(page_file)}")
+                self._log(f"\n[ANALYZER] [{index}/{len(page_files)}] Analiz ediliyor: {os.path.basename(page_file)}")
                 
                 # Sayfa verisini oku
                 page_data = self._load_page(page_file)
@@ -79,11 +87,12 @@ class AnalyzerRunner:
                     analysis_result = self._build_skipped_analysis(page_data, "skipped_no_html")
                     analysis_file = self._save_analysis(analysis_result, page_file)
                     saved_files.append(analysis_file)
-                    print(
-                        f"[ANALYZER] ATLANDI: HTML içeriği yok - "
-                        f"{page_data.get('url', 'Bilinmeyen URL')} "
-                        f"(neden: {analysis_result.get('skip_reason', 'bilinmiyor')})"
-                    )
+                    if self.verbose:
+                        print(
+                            f"[ANALYZER] ATLANDI: HTML içeriği yok - "
+                            f"{page_data.get('url', 'Bilinmeyen URL')} "
+                            f"(neden: {analysis_result.get('skip_reason', 'bilinmiyor')})"
+                        )
                     continue
                 
                 # Analiz yap
@@ -94,12 +103,14 @@ class AnalyzerRunner:
                 saved_files.append(analysis_file)
                 
                 # Özet yazdır
-                self._print_summary(analysis_result)
+                if self.verbose:
+                    self._print_summary(analysis_result)
                 
             except Exception as e:
                 print(f"[ANALYZER] HATA: {page_file} - {str(e)}")
         
-        print("\n" + "=" * 50)
+        if self.verbose:
+            print("\n" + "=" * 50)
         print(f"[ANALYZER] Toplam {len(saved_files)} sayfa analizi tamamlandı.")
         
         return saved_files
@@ -153,18 +164,18 @@ class AnalyzerRunner:
         html = page_data.get("html", "")
         headers = page_data.get("headers", {})
         
-        print(f"  → URL: {url[:60]}...")
+        self._log(f"  → URL: {url[:60]}...")
         
         # Header analizi
-        print("  → Güvenlik başlıkları kontrol ediliyor...")
+        self._log("  → Güvenlik başlıkları kontrol ediliyor...")
         header_result = self.header_checker.check(url, cached_headers=headers if headers else None)
         
         # Link analizi (sadece dahili sayfalar için, dış linkler için atla)
-        print("  → Linkler kontrol ediliyor...")
+        self._log("  → Linkler kontrol ediliyor...")
         link_result = self.link_checker.check(url, html)
         
         # SEO analizi
-        print("  → SEO analizi yapılıyor...")
+        self._log("  → SEO analizi yapılıyor...")
         seo_result = self.seo_checker.check(url, html)
         
         # Sonuçları birleştir
@@ -347,7 +358,7 @@ class AnalyzerRunner:
         with open(analysis_file, "w", encoding="utf-8") as f:
             json.dump(analysis, f, ensure_ascii=False, indent=2)
         
-        print(f"  → Kaydedildi: {analysis_file}")
+        self._log(f"  → Kaydedildi: {analysis_file}")
         return analysis_file
     
     def _print_summary(self, analysis: Dict[str, Any]) -> None:
@@ -386,3 +397,6 @@ class AnalyzerRunner:
         if page_data:
             return self._analyze_page(page_data)
         return {}
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)

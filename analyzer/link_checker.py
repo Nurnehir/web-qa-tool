@@ -36,7 +36,15 @@ class LinkChecker:
     # Atlanacak protokoller
     SKIP_PROTOCOLS = ["mailto:", "tel:", "javascript:", "data:", "#"]
     
-    def __init__(self, timeout: float = 5.0, max_concurrent: int = 10, max_retries: int = 2):
+    def __init__(
+        self,
+        timeout: float = 5.0,
+        max_concurrent: int = 10,
+        max_retries: int = 2,
+        max_links_per_page: int = 0,
+        check_asset_links: bool = True,
+        verbose: bool = True
+    ):
         """
         LinkChecker sınıfını başlatır.
         
@@ -47,6 +55,9 @@ class LinkChecker:
         self.timeout = timeout
         self.max_concurrent = max_concurrent
         self.max_retries = max_retries
+        self.max_links_per_page = max_links_per_page
+        self.check_asset_links = check_asset_links
+        self.verbose = verbose
     
     def check(self, url: str, html_content: str) -> Dict[str, Any]:
         """
@@ -80,12 +91,19 @@ class LinkChecker:
         
         # Kontrol edilecek linkleri filtrele
         links_to_check = links["to_check"]
+        if self.max_links_per_page and len(links_to_check) > self.max_links_per_page:
+            overflow = links_to_check[self.max_links_per_page:]
+            links_to_check = links_to_check[:self.max_links_per_page]
+            result["skipped_links"].extend(
+                {"url": u, "reason": "max_links_per_page limiti"} for u in overflow
+            )
         
         if not links_to_check:
             return result
         
         # Linkleri kontrol et
-        print(f"[LINK_CHECKER] {len(links_to_check)} link kontrol ediliyor...")
+        if self.verbose:
+            print(f"[LINK_CHECKER] {len(links_to_check)} link kontrol ediliyor...")
         checked = self._check_links_sync(links_to_check)
         
         result["checked_links"] = len(checked)
@@ -123,7 +141,8 @@ class LinkChecker:
         try:
             soup = BeautifulSoup(html_content, "lxml")
             
-            for tag_name, attr_name in self.LINK_SELECTORS:
+            selectors = self.LINK_SELECTORS if self.check_asset_links else [("a", "href")]
+            for tag_name, attr_name in selectors:
                 for element in soup.find_all(tag_name):
                     link = element.get(attr_name)
                     

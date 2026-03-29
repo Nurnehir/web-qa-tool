@@ -76,12 +76,13 @@ def print_step(step_num: int, title: str):
 def main():
     """Ana uygulama fonksiyonu."""
     start_time = datetime.now()
-    
-    # Banner'ı göster
-    print_banner()
-    
+
     # Konfigürasyonu yükle
     config = load_config()
+    quiet_mode = config.get("quiet_mode", True)
+    verbose_mode = not quiet_mode
+    if not quiet_mode:
+        print_banner()
     
     print(f"[BİLGİ] Hedef URL: {config['target_url']}")
     print(f"[BİLGİ] Maksimum sayfa: {config['max_pages']}")
@@ -94,7 +95,8 @@ def main():
     
     crawler = CloudflareCrawler(
         token=config["cloudflare_token"],
-        account_id=config["cloudflare_account_id"]
+        account_id=config["cloudflare_account_id"],
+        verbose=verbose_mode
     )
     
     crawl_result = crawler.crawl(
@@ -114,18 +116,19 @@ def main():
     # Sayfaları kaydet
     saver = PageSaver(
         fallback_fetch_skipped=config.get("fallback_fetch_skipped", True),
-        fallback_timeout=config.get("fallback_timeout", 15.0)
+        fallback_timeout=config.get("fallback_timeout", 15.0),
+        verbose=verbose_mode
     )
     saver.clear_output()  # Önceki verileri temizle
     
     # Analiz ve senaryo klasörlerini de temizle
-    import shutil
     for folder in ["output/analysis", "output/scenarios"]:
         if os.path.exists(folder):
             for f in os.listdir(folder):
                 if f.endswith(".json"):
                     os.remove(os.path.join(folder, f))
-            print(f"[MAIN] Klasör temizlendi: {folder}")
+            if verbose_mode:
+                print(f"[MAIN] Klasör temizlendi: {folder}")
     
     saved_pages = saver.save_pages(crawl_result)
     
@@ -140,7 +143,14 @@ def main():
     # ═══════════════════════════════════════════════════════════
     print_step(2, "STATİK ANALİZ (Güvenlik, Link, SEO)")
     
-    analyzer = AnalyzerRunner()
+    analyzer = AnalyzerRunner(
+        verbose=verbose_mode,
+        link_checker_options={
+            "max_links_per_page": config.get("max_links_per_page", 150),
+            "check_asset_links": config.get("check_asset_links", False),
+            "max_retries": config.get("link_max_retries", 1)
+        }
+    )
     analysis_files = analyzer.run()
     analyzed_count = 0
     skipped_count = 0
@@ -168,7 +178,8 @@ def main():
     
     llm_runner = LLMRunner(
         ollama_url=config["ollama_url"],
-        model=config["ollama_model"]
+        model=config["ollama_model"],
+        verbose=verbose_mode
     )
     
     scenario_files = llm_runner.run()

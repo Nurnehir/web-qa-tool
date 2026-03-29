@@ -24,7 +24,7 @@ class CloudflareCrawler:
         base_url (str): API endpoint base URL
     """
     
-    def __init__(self, token: str, account_id: str):
+    def __init__(self, token: str, account_id: str, verbose: bool = True):
         """
         CloudflareCrawler sınıfını başlatır.
         
@@ -35,6 +35,11 @@ class CloudflareCrawler:
         self.token = token
         self.account_id = account_id
         self.base_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/browser-rendering"
+        self.verbose = verbose
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)
     
     def crawl(
         self,
@@ -115,9 +120,9 @@ class CloudflareCrawler:
         }
         
         try:
-            print(f"[CRAWLER] Tarama başlatılıyor: {target_url}")
-            print(f"[CRAWLER] Maksimum sayfa: {max_pages}, Derinlik: {depth}")
-            print(
+            self._log(f"[CRAWLER] Tarama başlatılıyor: {target_url}")
+            self._log(f"[CRAWLER] Maksimum sayfa: {max_pages}, Derinlik: {depth}")
+            self._log(
                 f"[CRAWLER] includeSubdomains={include_subdomains}, "
                 f"includeExternalLinks={include_external_links}, render={render}"
             )
@@ -134,7 +139,7 @@ class CloudflareCrawler:
                     
                     if data.get("success"):
                         task_id = data.get("result")
-                        print(f"[CRAWLER] Crawl işi başlatıldı. Task ID: {task_id}")
+                        self._log(f"[CRAWLER] Crawl işi başlatıldı. Task ID: {task_id}")
                         return task_id
                     else:
                         errors = data.get("errors", [])
@@ -168,7 +173,7 @@ class CloudflareCrawler:
         Returns:
             Crawl sonucu veya None
         """
-        print(f"[CRAWLER] Sonuç bekleniyor (maks {max_attempts * wait_seconds} saniye)...")
+        self._log(f"[CRAWLER] Sonuç bekleniyor (maks {max_attempts * wait_seconds} saniye)...")
         
         try:
             with httpx.Client(timeout=60.0) as client:
@@ -200,7 +205,7 @@ class CloudflareCrawler:
                                         result = full_data.get("result", {})
                                 
                                 records = result.get("records", [])
-                                print(f"[CRAWLER] Tarama tamamlandı! {len(records)} sayfa bulundu.")
+                                self._log(f"[CRAWLER] Tarama tamamlandı! {len(records)} sayfa bulundu.")
                                 # records'u pages olarak da ekle (uyumluluk için)
                                 result["pages"] = records
                                 return result
@@ -214,7 +219,7 @@ class CloudflareCrawler:
                                 # Progress bilgisi varsa göster
                                 total = result.get("total", 0)
                                 finished = result.get("finished", 0)
-                                print(f"[CRAWLER] İşleniyor... {finished}/{total} sayfa (deneme {attempt}/{max_attempts})")
+                                self._log(f"[CRAWLER] İşleniyor... {finished}/{total} sayfa (deneme {attempt}/{max_attempts})")
                                 time.sleep(wait_seconds)
                             else:
                                 print(f"[CRAWLER] Bilinmeyen durum: {status}, bekleniyor...")

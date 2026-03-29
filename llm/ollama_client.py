@@ -17,7 +17,7 @@ class OllamaClient:
     LLM'den test senaryoları üretir.
     """
     
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3"):
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3", verbose: bool = True):
         """
         OllamaClient sınıfını başlatır.
         
@@ -27,8 +27,13 @@ class OllamaClient:
         """
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.verbose = verbose
         self.generate_url = f"{self.base_url}/api/generate"
         self.chat_url = f"{self.base_url}/api/chat"
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)
     
     def generate(self, prompt: str, temperature: float = 0.4, max_tokens: int = 1536) -> Optional[str]:
         """
@@ -57,7 +62,7 @@ class OllamaClient:
         }
         
         try:
-            print(f"[OLLAMA] İstek gönderiliyor ({self.model})...")
+            self._log(f"[OLLAMA] İstek gönderiliyor ({self.model})...")
             
             # LLM yanıtı uzun sürebilir, timeout yüksek tutuldu
             with httpx.Client(timeout=300.0) as client:
@@ -71,7 +76,7 @@ class OllamaClient:
                     total_duration = data.get("total_duration", 0) / 1e9  # nanosaniye -> saniye
                     eval_count = data.get("eval_count", 0)
                     
-                    print(f"[OLLAMA] Yanıt alındı ({eval_count} token, {total_duration:.1f} saniye)")
+                    self._log(f"[OLLAMA] Yanıt alındı ({eval_count} token, {total_duration:.1f} saniye)")
                     return result
                 else:
                     print(f"[OLLAMA] HTTP hatası: {response.status_code}")
@@ -110,7 +115,7 @@ class OllamaClient:
         }
         
         try:
-            print(f"[OLLAMA] Chat isteği gönderiliyor ({self.model})...")
+            self._log(f"[OLLAMA] Chat isteği gönderiliyor ({self.model})...")
             
             with httpx.Client(timeout=300.0) as client:
                 response = client.post(self.chat_url, json=payload)
@@ -119,7 +124,7 @@ class OllamaClient:
                     data = response.json()
                     message = data.get("message", {})
                     result = message.get("content", "")
-                    print(f"[OLLAMA] Chat yanıtı alındı")
+                    self._log(f"[OLLAMA] Chat yanıtı alındı")
                     return result
                 else:
                     print(f"[OLLAMA] HTTP hatası: {response.status_code}")

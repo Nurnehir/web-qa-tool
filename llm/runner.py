@@ -27,7 +27,8 @@ class LLMRunner:
         analysis_dir: str = "output/analysis",
         scenarios_dir: str = "output/scenarios",
         ollama_url: str = "http://localhost:11434",
-        model: str = "llama3"
+        model: str = "llama3",
+        verbose: bool = True
     ):
         """
         LLMRunner sınıfını başlatır.
@@ -42,20 +43,25 @@ class LLMRunner:
         self.pages_dir = pages_dir
         self.analysis_dir = analysis_dir
         self.scenarios_dir = scenarios_dir
+        self.verbose = verbose
         
         # Bileşenleri başlat
         self.prompt_builder = PromptBuilder()
-        self.ollama_client = OllamaClient(base_url=ollama_url, model=model)
+        self.ollama_client = OllamaClient(base_url=ollama_url, model=model, verbose=verbose)
         self.scenario_parser = ScenarioParser()
         
         # Çıktı klasörünü oluştur
         self._ensure_directory()
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)
     
     def _ensure_directory(self) -> None:
         """Çıktı klasörünün var olduğundan emin olur."""
         if not os.path.exists(self.scenarios_dir):
             os.makedirs(self.scenarios_dir)
-            print(f"[LLM] Klasör oluşturuldu: {self.scenarios_dir}")
+            self._log(f"[LLM] Klasör oluşturuldu: {self.scenarios_dir}")
     
     def run(self) -> List[str]:
         """
@@ -78,7 +84,7 @@ class LLMRunner:
             print("[LLM] UYARI: Yüklü model bulunamadı. 'ollama pull llama3' komutunu çalıştırın.")
             return saved_files
         
-        print(f"[LLM] Kullanılabilir modeller: {', '.join(models)}")
+        self._log(f"[LLM] Kullanılabilir modeller: {', '.join(models)}")
         
         # Analiz dosyalarını bul
         analysis_files = self._get_analysis_files()
@@ -88,11 +94,12 @@ class LLMRunner:
             return saved_files
         
         print(f"[LLM] {len(analysis_files)} sayfa için senaryo üretilecek...")
-        print("=" * 50)
+        if self.verbose:
+            print("=" * 50)
         
         for index, analysis_file in enumerate(analysis_files, start=1):
             try:
-                print(f"\n[LLM] [{index}/{len(analysis_files)}] İşleniyor: {os.path.basename(analysis_file)}")
+                self._log(f"\n[LLM] [{index}/{len(analysis_files)}] İşleniyor: {os.path.basename(analysis_file)}")
                 
                 # Sayfa dosyasını bul
                 page_file = self._get_page_file(analysis_file)
@@ -109,7 +116,7 @@ class LLMRunner:
                     continue
                 
                 token_estimate = self.prompt_builder.get_token_estimate(prompt)
-                print(f"[LLM] Prompt hazır (~{token_estimate} token)")
+                self._log(f"[LLM] Prompt hazır (~{token_estimate} token)")
                 
                 # LLM'den yanıt al
                 llm_response = self.ollama_client.generate(prompt)
@@ -122,7 +129,7 @@ class LLMRunner:
                 parsed = self.scenario_parser.parse(llm_response)
                 
                 if parsed["parse_success"]:
-                    print(f"[LLM] {len(parsed['scenarios'])} senaryo üretildi")
+                    self._log(f"[LLM] {len(parsed['scenarios'])} senaryo üretildi")
                 else:
                     print(f"[LLM] UYARI: Ayrıştırma sorunu - {parsed.get('error', 'Bilinmeyen hata')}")
                 
@@ -131,12 +138,14 @@ class LLMRunner:
                 saved_files.append(scenario_file)
                 
                 # Özet yazdır
-                self._print_summary(parsed)
+                if self.verbose:
+                    self._print_summary(parsed)
                 
             except Exception as e:
                 print(f"[LLM] HATA: {analysis_file} - {str(e)}")
         
-        print("\n" + "=" * 50)
+        if self.verbose:
+            print("\n" + "=" * 50)
         print(f"[LLM] Toplam {len(saved_files)} senaryo dosyası oluşturuldu.")
         
         return saved_files
@@ -217,7 +226,7 @@ class LLMRunner:
         with open(scenario_file, "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
         
-        print(f"[LLM] Kaydedildi: {scenario_file}")
+        self._log(f"[LLM] Kaydedildi: {scenario_file}")
         return scenario_file
     
     def _print_summary(self, parsed: Dict[str, Any]) -> None:

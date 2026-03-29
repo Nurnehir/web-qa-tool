@@ -11,5 +11,9 @@
   "crawl_formats": ["html", "markdown"],
   "render": true,
   "fallback_fetch_skipped": true,
-  "fallback_timeout": 15.0
+  "fallback_timeout": 15.0,
+  "quiet_mode": true,
+  "max_links_per_page": 150,
+  "check_asset_links": false,
+  "link_max_retries": 1
 }

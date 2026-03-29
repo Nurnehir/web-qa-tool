@@ -25,7 +25,8 @@ class PageSaver:
         self,
         output_dir: str = "output/pages",
         fallback_fetch_skipped: bool = True,
-        fallback_timeout: float = 15.0
+        fallback_timeout: float = 15.0,
+        verbose: bool = True
     ):
         """
         PageSaver sınıfını başlatır.
@@ -36,13 +37,18 @@ class PageSaver:
         self.output_dir = output_dir
         self.fallback_fetch_skipped = fallback_fetch_skipped
         self.fallback_timeout = fallback_timeout
+        self.verbose = verbose
         self._ensure_directory()
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)
     
     def _ensure_directory(self) -> None:
         """Çıktı klasörünün var olduğundan emin olur."""
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-            print(f"[PAGE_SAVER] Klasör oluşturuldu: {self.output_dir}")
+            self._log(f"[PAGE_SAVER] Klasör oluşturuldu: {self.output_dir}")
     
     def save_pages(self, crawl_result: dict) -> List[str]:
         """
@@ -62,18 +68,18 @@ class PageSaver:
             print("[PAGE_SAVER] UYARI: Kaydedilecek sayfa bulunamadı.")
             return saved_files
         
-        print(f"[PAGE_SAVER] {len(pages)} sayfa kaydediliyor...")
+        self._log(f"[PAGE_SAVER] {len(pages)} sayfa kaydediliyor...")
         
         for index, page in enumerate(pages, start=1):
             try:
                 page_data = self._format_page_data(page)
                 file_path = self._save_single_page(page_data, index)
                 saved_files.append(file_path)
-                print(f"[PAGE_SAVER] Kaydedildi: {file_path}")
+                self._log(f"[PAGE_SAVER] Kaydedildi: {file_path}")
             except Exception as e:
                 print(f"[PAGE_SAVER] HATA: Sayfa {index} kaydedilemedi - {str(e)}")
         
-        print(f"[PAGE_SAVER] Toplam {len(saved_files)} sayfa başarıyla kaydedildi.")
+        self._log(f"[PAGE_SAVER] Toplam {len(saved_files)} sayfa başarıyla kaydedildi.")
         return saved_files
     
     def _format_page_data(self, page: dict) -> Dict[str, Any]:
@@ -249,7 +255,7 @@ class PageSaver:
                 if file_name.endswith(".json"):
                     file_path = os.path.join(self.output_dir, file_name)
                     os.remove(file_path)
-            print(f"[PAGE_SAVER] Çıktı klasörü temizlendi: {self.output_dir}")
+            self._log(f"[PAGE_SAVER] Çıktı klasörü temizlendi: {self.output_dir}")
         except Exception as e:
             print(f"[PAGE_SAVER] HATA: Klasör temizlenemedi - {str(e)}")
     
