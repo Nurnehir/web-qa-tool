@@ -202,6 +202,15 @@ def main():
     # HTML rapor
     html_reporter = HTMLReporter()
     html_report_path = html_reporter.generate()
+
+    # Terminal için global metrik özeti (quiet_mode'da da görünür)
+    summary = {}
+    try:
+        with open(json_report_path, "r", encoding="utf-8") as f:
+            report_data = json.load(f)
+        summary = report_data.get("summary", {})
+    except Exception:
+        summary = {}
     
     # ═══════════════════════════════════════════════════════════
     # ÖZET
@@ -229,6 +238,19 @@ def main():
     💡 HTML raporu tarayıcıda açmak için:
        start {html_report_path.replace('/', chr(92))}
     """)
+
+    if summary:
+        avg = summary.get("average_scores", {})
+        dq = summary.get("data_quality", {})
+        print("    🔎 METRİK ÖZETİ")
+        print("    ─────────────────────────────────────")
+        print(f"    • Ortalama Güvenlik : {avg.get('security', 0)}%")
+        print(f"    • Ortalama SEO      : {avg.get('seo', 0)}%")
+        print(f"    • Ortalama Genel    : {avg.get('overall', 0)}%")
+        print(f"    • Kalıcı Kırık Link : {summary.get('total_broken_strict', 0)}")
+        print(f"    • Rate Limited      : {summary.get('total_rate_limited', 0)}")
+        print(f"    • Geçici Ağ Hatası  : {summary.get('total_transient_network', 0)}")
+        print(f"    • Coverage          : {dq.get('analysis_coverage_rate', 0)}%")
 
 
 if __name__ == "__main__":
