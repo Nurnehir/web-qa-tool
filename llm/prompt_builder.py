@@ -98,12 +98,19 @@ SEO DURUMU:
         # SEO verileri
         seo = analysis_data.get("seo", {})
         
-        # Kırık linkler - sadece sayı bildir (detay verme, daha hızlı)
-        broken_links = analysis_data.get("broken_links", [])
-        if broken_links:
-            broken_links_text = f"{len(broken_links)} adet kırık link tespit edildi"
+        # Link özeti: kalıcı ve geçiciyi ayır
+        links_summary = analysis_data.get("links_summary", {})
+        strict_broken = links_summary.get("broken_strict", 0)
+        transient = links_summary.get("transient_network", 0)
+        client_error = links_summary.get("client_error", 0)
+        rate_limited = links_summary.get("rate_limited", 0)
+        if strict_broken or transient or client_error or rate_limited:
+            broken_links_text = (
+                f"kalıcı={strict_broken}, transient={transient}, "
+                f"client_error={client_error}, rate_limited={rate_limited}"
+            )
         else:
-            broken_links_text = "Kırık link bulunamadı"
+            broken_links_text = "problemli link bulunamadı"
         
         # Şablona değerleri yerleştir
         prompt = self.template.format(

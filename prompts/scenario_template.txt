@@ -5,7 +5,7 @@ URL: {url}
 Başlık: {title}
 Güvenlik: CSP {csp_status}, HSTS {hsts_status}
 SEO: H1={h1_count}, Meta={meta_description_status}
-Kırık Linkler: {broken_links}
+Link Durumu: {broken_links}
 
 İçerik:
 {markdown_content}
@@ -17,6 +17,9 @@ Kırık Linkler: {broken_links}
 4. Priority'yi analiz verisine göre belirle (missing CSP = high, broken links = medium)
 5. Markdown işaretlerini temizle (** kullanma)
 6. TÜM senaryoları TEK BİR JSON ARRAY içinde döndür
+7. Her senaryo için expected sonucu ÖLÇÜLEBİLİR yaz (ör: \"HTTP 200 döner\", \"header mevcut değildir\", \"H1 sayısı 1 olmalı\")
+8. Belirsiz/generic expected yazma (\"başarıyla tamamlanmalı\", \"SEO optimizasyonu zor\" gibi)
+9. Sadece verilen analiz verisindeki bulgulara dayan; uydurma güvenlik iddiası üretme
 
 YANIT FORMATI - SADECE BU FORMATTA JSON ARRAY (başka açıklama, başlık veya text ekleme!):
 ```json
@@ -58,4 +61,4 @@ YANIT FORMATI - SADECE BU FORMATTA JSON ARRAY (başka açıklama, başlık veya 
 
 ÖNEMLİ: Yukarıdaki gibi TÜM senaryoları tek bir JSON array içinde, tek bir ```json bloğunda döndür. Her senaryo için ayrı blok AÇMA!
 
-Şimdi 3-4 senaryo üret.
+Şimdi 2-3 senaryo üret.

@@ -60,6 +60,9 @@ class ScenarioParser:
                     validated = self._validate_scenario(scenario, i)
                     if validated:
                         validated_scenarios.append(validated)
+
+                # Duplicateleri temizle, kaliteli ilk senaryoları tut
+                validated_scenarios = self._dedupe_scenarios(validated_scenarios)[:4]
                 
                 result["scenarios"] = validated_scenarios
                 result["parse_success"] = len(validated_scenarios) > 0
@@ -193,7 +196,7 @@ class ScenarioParser:
             cleaned_steps.append(step_str)
         
         # En az 2 geçerli adım olmalı
-        if len(cleaned_steps) < 2:
+        if len(cleaned_steps) < 3:
             print(f"[PARSER] UYARI: Senaryo '{title}' geçersiz steps içeriyor, atlandı")
             return None
         
@@ -205,6 +208,12 @@ class ScenarioParser:
             scenario.get("beklenen_sonuc") or
             "Beklenen sonuç belirtilmedi"
         )
+        expected = str(expected).strip()
+        expected_lower = expected.lower()
+        if len(expected) < 12:
+            return None
+        if any(pattern in expected_lower for pattern in self.GENERIC_EXPECTED_PATTERNS):
+            return None
         
         # Önceliği al ve normalize et
         priority = str(scenario.get("priority") or scenario.get("oncelik") or "medium").lower()
@@ -219,9 +228,24 @@ class ScenarioParser:
             "scenario_id": scenario.get("scenario_id") or scenario.get("id") or index,
             "title": title,
             "steps": cleaned_steps,
-            "expected": str(expected).strip(),
+            "expected": expected,
             "priority": priority
         }
+
+    def _dedupe_scenarios(self, scenarios: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Başlık + expected benzerliğine göre tekrar eden senaryoları eler."""
+        unique = []
+        seen = set()
+        for s in scenarios:
+            key = (
+                re.sub(r"\s+", " ", s.get("title", "").strip().lower()),
+                re.sub(r"\s+", " ", s.get("expected", "").strip().lower()),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(s)
+        return unique
     
     def _parse_as_text(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -299,3 +323,9 @@ class ScenarioParser:
             output.append(f"  Beklenen: {s['expected']}")
         
         return "\n".join(output)
+    GENERIC_EXPECTED_PATTERNS = [
+        "başarıyla tamamlanmalı",
+        "kullanıcı yönlendiriliyor",
+        "seo optimizasyonu zor",
+        "beklenen sonuç belirtilmedi"
+    ]
