@@ -287,7 +287,7 @@ class ScenarioParser:
     def _normalize_text(self, text: str) -> str:
         """Basit metin normalizasyonu."""
         t = re.sub(r"\s+", " ", text).strip()
-        t = re.sub(r"[\s'\"`]+$", "", t)
+        t = re.sub(r"\s+$", "", t)
         t = re.sub(r"\(\s*$", "", t).strip()
         return t
     
