@@ -8,6 +8,7 @@ test senaryoları üretir ve kaydeder.
 import json
 import os
 from typing import Dict, Any, List
+from urllib.parse import urlparse
 from .prompt_builder import PromptBuilder
 from .ollama_client import OllamaClient
 from .scenario_parser import ScenarioParser
@@ -141,6 +142,8 @@ class LLMRunner:
                 parsed = self.scenario_parser.parse(llm_response)
                 
                 if parsed["parse_success"]:
+                    page_url = self._extract_url_from_analysis(analysis_file)
+                    parsed["scenarios"] = self._ensure_required_scenarios(parsed.get("scenarios", []), page_url)
                     self._log(f"[LLM] {len(parsed['scenarios'])} senaryo üretildi")
                     # Sonucu kaydet
                     scenario_file = self._save_scenarios(parsed, analysis_file)
@@ -225,6 +228,87 @@ class LLMRunner:
         base_name = os.path.basename(analysis_file)
         page_name = base_name.replace("_analysis.json", ".json")
         return os.path.join(self.pages_dir, page_name)
+
+    def _extract_url_from_analysis(self, analysis_file: str) -> str:
+        try:
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("url", "")
+        except Exception:
+            return ""
+
+    def _ensure_required_scenarios(self, scenarios: List[Dict[str, Any]], page_url: str) -> List[Dict[str, Any]]:
+        """
+        Senaryo çeşitliliğini artırır; login sayfalarında zorunlu 3 senaryoyu eksikse ekler.
+        """
+        normalized = list(scenarios or [])
+        used_types = {str(s.get("type", "")).strip().lower() for s in normalized}
+
+        # type alanı boş olanlara varsayılan ata
+        for s in normalized:
+            t = str(s.get("type", "")).strip().lower()
+            if not t:
+                s["type"] = "functional"
+                used_types.add("functional")
+
+        path_lower = (urlparse(page_url).path or "").lower()
+        is_login = "login" in path_lower
+        if not is_login:
+            return normalized
+
+        combined_text = " ".join(
+            f"{s.get('title', '')} {s.get('expected', '')}".lower() for s in normalized
+        )
+        next_id = max([int(s.get("scenario_id", 0) or 0) for s in normalized] + [0]) + 1
+
+        required = []
+        if "successful login" not in combined_text and "valid credentials" not in combined_text:
+            required.append({
+                "scenario_id": next_id,
+                "type": "functional",
+                "title": "Verify successful login with valid credentials",
+                "steps": [
+                    "Open the login page",
+                    "Enter a valid username and password",
+                    "Click the login button",
+                    "Observe the post-login destination page"
+                ],
+                "expected": "User is authenticated and redirected to the secure area with HTTP 200",
+                "priority": "high",
+            })
+            next_id += 1
+        if "wrong password" not in combined_text and "invalid password" not in combined_text:
+            required.append({
+                "scenario_id": next_id,
+                "type": "negative",
+                "title": "Verify login fails with wrong password",
+                "steps": [
+                    "Open the login page",
+                    "Enter a valid username and an invalid password",
+                    "Submit the login form",
+                    "Check the response message"
+                ],
+                "expected": "Authentication fails, error message is shown, and secure page is not accessible",
+                "priority": "high",
+            })
+            next_id += 1
+        if "empty field" not in combined_text and "required field" not in combined_text:
+            required.append({
+                "scenario_id": next_id,
+                "type": "validation",
+                "title": "Verify empty login fields are validated",
+                "steps": [
+                    "Open the login page",
+                    "Leave username and password fields empty",
+                    "Submit the login form",
+                    "Check validation feedback near the form"
+                ],
+                "expected": "Form validation blocks submission and displays required field messages",
+                "priority": "medium",
+            })
+
+        normalized.extend(required)
+        return normalized
     
     def _save_scenarios(self, parsed: Dict[str, Any], analysis_file: str) -> str:
         """

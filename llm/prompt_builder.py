@@ -8,6 +8,7 @@ prompt'u hazırlar.
 
 import os
 from typing import Dict, Any, Optional
+from urllib.parse import urlparse
 
 
 class PromptBuilder:
@@ -113,9 +114,19 @@ Generate 2-3 scenarios. Return JSON only:
             broken_links_text = "no problematic links found"
         
         # Şablona değerleri yerleştir
+        page_url = page_data.get("url", "Bilinmeyen URL")
+        path_lower = (urlparse(page_url).path or "").lower()
+        title_lower = str(page_data.get("title", "")).lower()
+        is_login_page = ("login" in path_lower) or ("sign in" in title_lower) or ("signin" in path_lower)
+        login_page_hint = (
+            "This is a login page. Include successful login, wrong password, and empty field validation scenarios."
+            if is_login_page
+            else "Not a login page."
+        )
         prompt = self.template.format(
-            url=page_data.get("url", "Bilinmeyen URL"),
+            url=page_url,
             markdown_content=markdown,
+            login_page_hint=login_page_hint,
             csp_status="Present ✓" if headers_summary.get("csp") else "Missing ✗",
             hsts_status="Present ✓" if headers_summary.get("hsts") else "Missing ✗",
             xframe_status="Present ✓" if headers_summary.get("x_frame_options") else "Missing ✗",

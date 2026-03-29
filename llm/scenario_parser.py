@@ -48,6 +48,7 @@ class ScenarioParser:
         "count",
         "equals"
     ]
+    ALLOWED_TYPES = {"functional", "validation", "negative", "navigation", "security-check"}
     
     def parse(self, llm_response: str) -> Dict[str, Any]:
         """
@@ -261,9 +262,26 @@ class ScenarioParser:
         # Türkçe öncelikleri İngilizce'ye çevir
         priority_map = {"yüksek": "high", "orta": "medium", "düşük": "low"}
         priority = priority_map.get(priority, priority)
-        
+
+        scenario_type = str(
+            scenario.get("type") or scenario.get("scenario_type") or scenario.get("category") or ""
+        ).strip().lower()
+        if scenario_type not in self.ALLOWED_TYPES:
+            t = title.lower()
+            if any(k in t for k in ["login", "submit", "flow", "success"]):
+                scenario_type = "functional"
+            elif any(k in t for k in ["empty", "required", "validation", "format"]):
+                scenario_type = "validation"
+            elif any(k in t for k in ["invalid", "wrong", "negative", "unauthorized", "error"]):
+                scenario_type = "negative"
+            elif any(k in t for k in ["navigate", "menu", "redirect", "route"]):
+                scenario_type = "navigation"
+            else:
+                scenario_type = "security-check"
+
         return {
             "scenario_id": scenario.get("scenario_id") or scenario.get("id") or index,
+            "type": scenario_type,
             "title": title,
             "steps": cleaned_steps,
             "expected": expected,

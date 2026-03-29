@@ -22,7 +22,7 @@ from urllib.parse import urljoin, urlparse
 from crawler import CloudflareCrawler, PageSaver
 from analyzer import AnalyzerRunner
 from llm.runner import LLMRunner
-from reporter import JSONReporter, HTMLReporter
+from reporter import JSONReporter, HTMLReporter, CleanReporter
 
 
 def _load_page_files(pages_dir: str = "output/pages") -> list:
@@ -459,6 +459,10 @@ def main():
     html_reporter = HTMLReporter()
     html_report_path = html_reporter.generate()
 
+    # Akademik clean raporlar
+    clean_reporter = CleanReporter(source_json=json_report_path)
+    clean_paths = clean_reporter.generate(target_url=config["target_url"])
+
     # Terminal için global metrik özeti (quiet_mode'da da görünür)
     summary = {}
     try:
@@ -490,6 +494,9 @@ def main():
     ─────────────────────────────────────
     • JSON Rapor : {json_report_path}
     • HTML Rapor : {html_report_path}
+    • Clean JSON : {clean_paths.get('json', 'output/report_clean.json')}
+    • Clean HTML : {clean_paths.get('html', 'output/report_clean.html')}
+    • Clean CSV  : {clean_paths.get('csv', 'output/summary_table_clean.csv')}
     
     💡 HTML raporu tarayıcıda açmak için:
        start {html_report_path.replace('/', chr(92))}

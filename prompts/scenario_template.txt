@@ -4,6 +4,7 @@ Generate ACTIONABLE test scenarios for the webpage below.
 PAGE INFO:
 URL: {url}
 Title: {title}
+LOGIN HINT: {login_page_hint}
 Security: CSP {csp_status}, HSTS {hsts_status}
 SEO: H1={h1_count}, Meta={meta_description_status}
 Link Status: {broken_links}
@@ -21,12 +22,16 @@ STRICT RULES:
 7. Do not use vague expected text (e.g., "should work", "successfully completed").
 8. Use only findings present in the given analysis data. No fabricated claims.
 9. Return ALL scenarios in ONE JSON array, inside ONE ```json block.
+10. Include scenario "type" field using one of: functional, validation, negative, navigation, security-check.
+11. Prefer a mix of these scenario types per page when applicable.
+12. For login pages, MUST include: successful login, wrong password, empty field validation.
 
 RESPONSE FORMAT (JSON ONLY):
 ```json
 [
   {{
     "scenario_id": 1,
+    "type": "security-check",
     "title": "Verify missing Content-Security-Policy header",
     "steps": [
       "Open Chrome DevTools (F12)",
