@@ -25,7 +25,7 @@ STRICT RULES:
 RESPONSE FORMAT (JSON ONLY):
 ```json
 [
-  {
+  {{
     "scenario_id": 1,
     "title": "Verify missing Content-Security-Policy header",
     "steps": [
@@ -37,7 +37,7 @@ RESPONSE FORMAT (JSON ONLY):
     ],
     "expected": "HTTP 200 is returned and content-security-policy header is absent",
     "priority": "high"
-  }
+  }}
 ]
 ```
 
