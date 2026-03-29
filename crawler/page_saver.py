@@ -92,16 +92,53 @@ class PageSaver:
         
         # Metadata varsa kullan
         metadata = page.get("metadata", {})
+        raw_headers = page.get("headers", {})
+        status_code = metadata.get("status", page.get("statusCode", 200))
+        no_html_reason = self._infer_no_html_reason(page, metadata, status_code, html_content)
+        headers_source = "from_crawl_record" if raw_headers else "missing"
         
         return {
             "url": page.get("url", metadata.get("url", "")),
             "html": html_content,
             "markdown": markdown_content,
-            "status_code": metadata.get("status", page.get("statusCode", 200)),
-            "headers": page.get("headers", {}),
+            "status_code": status_code,
+            "headers": raw_headers,
+            "headers_source": headers_source,
             "title": metadata.get("title", ""),
-            "last_modified": metadata.get("lastModified", "")
+            "last_modified": metadata.get("lastModified", ""),
+            "content_type": metadata.get("contentType") or raw_headers.get("content-type"),
+            "crawl_record_status": page.get("status"),
+            "crawl_record_error": page.get("error"),
+            "crawl_record_reason": page.get("reason"),
+            "no_html_reason": no_html_reason,
+            "crawl_metadata": metadata
         }
+
+    def _infer_no_html_reason(
+        self,
+        page: Dict[str, Any],
+        metadata: Dict[str, Any],
+        status_code: int,
+        html_content: str
+    ) -> str:
+        """HTML içeriği olmayan kayıtlar için olası nedeni üretir."""
+        if html_content:
+            return ""
+
+        if page.get("error"):
+            return f"crawl_error:{page.get('error')}"
+
+        content_type = metadata.get("contentType", "")
+        if content_type and "html" not in content_type.lower():
+            return f"non_html_content_type:{content_type}"
+
+        if status_code >= 400:
+            return f"http_status:{status_code}"
+
+        if page.get("status"):
+            return f"record_status:{page.get('status')}"
+
+        return "html_missing_unknown"
     
     def _save_single_page(self, page_data: Dict[str, Any], index: int) -> str:
         """

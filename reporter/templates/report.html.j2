@@ -339,13 +339,53 @@
                 </div>
             </div>
         </div>
+
+        <!-- Veri Kalitesi -->
+        <div class="section">
+            <h2>🧭 Veri Kalitesi</h2>
+            <div class="metrics-row">
+                <div class="metric">
+                    <div class="value">{{ summary.data_quality.fetch_success_rate }}%</div>
+                    <div class="label">Fetch Success</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.data_quality.html_availability_rate }}%</div>
+                    <div class="label">HTML Availability</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.data_quality.analysis_coverage_rate }}%</div>
+                    <div class="label">Analysis Coverage</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.data_quality.header_measurement_rate }}%</div>
+                    <div class="label">Header Measurement</div>
+                </div>
+            </div>
+            <div class="metrics-row" style="margin-top:0.5rem;">
+                <div class="metric">
+                    <div class="value">{{ summary.total_broken_strict }}</div>
+                    <div class="label">Kalıcı Kırık Link</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.total_rate_limited }}</div>
+                    <div class="label">Rate Limited (429)</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.total_transient_network }}</div>
+                    <div class="label">Geçici Ağ Hatası</div>
+                </div>
+                <div class="metric">
+                    <div class="value">{{ summary.total_server_error }}</div>
+                    <div class="label">Server Error (5xx)</div>
+                </div>
+            </div>
+        </div>
         
         <!-- Sayfa Detayları -->
         <div class="section">
             <h2>📄 Sayfa Detayları</h2>
             
             {% for page in pages %}
-            {% if page.has_content %}
             <div class="page-card" id="page-{{ page.id }}">
                 <div class="page-header" onclick="togglePage({{ page.id }})">
                     <div>
@@ -360,19 +400,38 @@
                         <div class="page-url">{{ page.url }}</div>
                     </div>
                     <div>
+                        {% if page.analysis.analysis_status == 'analyzed' %}
+                        <span class="badge badge-success">analyzed</span>
+                        {% elif page.analysis.analysis_status == 'skipped_no_html' %}
+                        <span class="badge badge-warning">skipped_no_html</span>
+                        {% else %}
+                        <span class="badge badge-info">unknown</span>
+                        {% endif %}
                         <span class="badge badge-info">{{ page.scenarios|length }} senaryo</span>
-                        {% if page.analysis.broken_links %}
-                        <span class="badge badge-danger">{{ page.analysis.broken_links|length }} kırık link</span>
+                        {% if page.analysis.links_summary and page.analysis.links_summary.broken_strict %}
+                        <span class="badge badge-danger">{{ page.analysis.links_summary.broken_strict }} kalıcı kırık</span>
                         {% endif %}
                     </div>
                 </div>
                 
                 <div class="page-content">
+                    {% if page.analysis.analysis_status != 'analyzed' %}
+                    <div class="no-content">
+                        Bu sayfa analiz edilmedi. Neden:
+                        <strong>{{ page.analysis.skip_reason or page.no_html_reason or 'bilinmiyor' }}</strong>
+                    </div>
+                    {% else %}
                     <!-- Skorlar -->
                     {% if page.analysis.overall_score %}
                     <div class="metrics-row">
                         <div class="metric">
-                            <div class="value">{{ page.analysis.overall_score.breakdown.security }}%</div>
+                            <div class="value">
+                                {% if page.analysis.overall_score.breakdown.security is not none %}
+                                {{ page.analysis.overall_score.breakdown.security }}%
+                                {% else %}
+                                -
+                                {% endif %}
+                            </div>
                             <div class="label">Güvenlik</div>
                         </div>
                         <div class="metric">
@@ -406,6 +465,7 @@
                         {% for link in page.analysis.broken_links[:10] %}
                         <div class="broken-link">
                             {{ link.url }} - <strong>{{ link.error }}</strong>
+                            {% if link.category %} ({{ link.category }}){% endif %}
                         </div>
                         {% endfor %}
                         {% if page.analysis.broken_links|length > 10 %}
@@ -440,9 +500,9 @@
                     {% else %}
                     <div class="no-content">Test senaryosu üretilmedi</div>
                     {% endif %}
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
             {% endfor %}
         </div>
         

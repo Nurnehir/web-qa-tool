@@ -134,11 +134,24 @@ def main():
     
     analyzer = AnalyzerRunner()
     analysis_files = analyzer.run()
+    analyzed_count = 0
+    skipped_count = 0
+    for analysis_file in analysis_files:
+        try:
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            status = data.get("analysis_status")
+            if status in ("analyzed", None):
+                analyzed_count += 1
+            else:
+                skipped_count += 1
+        except Exception:
+            continue
     
     if not analysis_files:
         print("[UYARI] Hiçbir sayfa analiz edilemedi.")
     else:
-        print(f"\n[OK] Analiz tamamlandı: {len(analysis_files)} sayfa analiz edildi")
+        print(f"\n[OK] Analiz tamamlandı: {analyzed_count} analiz edildi, {skipped_count} atlandı")
     
     # ═══════════════════════════════════════════════════════════
     # ADIM 3: LLM İLE SENARYO ÜRETİMİ
@@ -183,7 +196,8 @@ def main():
     📊 ÖZET
     ─────────────────────────────────────
     • Taranan sayfa sayısı  : {len(saved_pages)}
-    • Analiz edilen sayfa   : {len(analysis_files)}
+    • Analiz edilen sayfa   : {analyzed_count}
+    • Atlanan sayfa         : {skipped_count}
     • Üretilen senaryo      : {len(scenario_files)} dosya
     • Toplam süre           : {duration:.1f} saniye
     

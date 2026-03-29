@@ -149,12 +149,20 @@ class LLMRunner:
             Sıralı dosya yolları listesi
         """
         try:
-            files = [
-                os.path.join(self.analysis_dir, f)
-                for f in os.listdir(self.analysis_dir)
-                if f.endswith("_analysis.json")
-            ]
-            return sorted(files)
+            files = []
+            for f in sorted(os.listdir(self.analysis_dir)):
+                if not f.endswith("_analysis.json"):
+                    continue
+                path = os.path.join(self.analysis_dir, f)
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    status = data.get("analysis_status")
+                    if status in ("analyzed", None):
+                        files.append(path)
+                except Exception:
+                    continue
+            return files
         except Exception as e:
             print(f"[LLM] HATA: Dosya listesi alınamadı - {str(e)}")
             return []

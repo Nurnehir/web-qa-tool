@@ -76,7 +76,14 @@ class AnalyzerRunner:
                 
                 # HTML içeriği yoksa atla
                 if not page_data.get("html"):
-                    print(f"[ANALYZER] ATLANDI: HTML içeriği yok - {page_data.get('url', 'Bilinmeyen URL')}")
+                    analysis_result = self._build_skipped_analysis(page_data, "skipped_no_html")
+                    analysis_file = self._save_analysis(analysis_result, page_file)
+                    saved_files.append(analysis_file)
+                    print(
+                        f"[ANALYZER] ATLANDI: HTML içeriği yok - "
+                        f"{page_data.get('url', 'Bilinmeyen URL')} "
+                        f"(neden: {analysis_result.get('skip_reason', 'bilinmiyor')})"
+                    )
                     continue
                 
                 # Analiz yap
@@ -203,6 +210,59 @@ class AnalyzerRunner:
         }
         
         return analysis
+
+    def _build_skipped_analysis(self, page_data: Dict[str, Any], status: str) -> Dict[str, Any]:
+        """Analiz edilemeyen sayfalar için minimum kayıt üretir."""
+        reason = (
+            page_data.get("no_html_reason")
+            or page_data.get("crawl_record_error")
+            or "unknown"
+        )
+        return {
+            "url": page_data.get("url", ""),
+            "analyzed_at": self._get_timestamp(),
+            "analysis_status": status,
+            "skip_reason": reason,
+            "headers": {
+                "summary": {},
+                "score": None,
+                "found": 0,
+                "missing": 0,
+                "measurement_status": "not_measured",
+                "error_type": "not_applicable",
+                "details": [],
+                "recommendations": []
+            },
+            "broken_links": [],
+            "links_summary": {
+                "total_links": 0,
+                "checked": 0,
+                "broken": 0,
+                "broken_strict": 0,
+                "server_error": 0,
+                "rate_limited": 0,
+                "transient_network": 0,
+                "client_error": 0,
+                "unknown_error": 0,
+                "working": 0,
+                "skipped": 0,
+                "health_percentage": None,
+                "strict_health_percentage": None
+            },
+            "seo": {},
+            "seo_details": {},
+            "overall_score": {
+                "score": None,
+                "grade": None,
+                "status": "Analiz edilemedi",
+                "confidence": "low",
+                "breakdown": {
+                    "security": None,
+                    "links": None,
+                    "seo": None
+                }
+            }
+        }
     
     def _calculate_overall_score(self, header_result: Dict, link_result: Dict, seo_result: Dict) -> Dict[str, Any]:
         """

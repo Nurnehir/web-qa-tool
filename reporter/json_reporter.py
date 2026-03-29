@@ -84,9 +84,11 @@ class JSONReporter:
                     filepath = os.path.join(self.pages_dir, filename)
                     with open(filepath, "r", encoding="utf-8") as f:
                         page_data = json.load(f)
+                        had_html = bool(page_data.get("html"))
                         # Büyük HTML/Markdown içeriklerini rapordan çıkar
                         page_data.pop("html", None)
                         page_data["markdown"] = page_data.get("markdown", "")[:500] + "..." if page_data.get("markdown") else ""
+                        page_data["_had_html"] = had_html
                         data[filename] = page_data
         except Exception as e:
             print(f"[JSON_REPORTER] UYARI: Sayfa verileri yüklenemedi - {str(e)}")
@@ -149,14 +151,25 @@ class JSONReporter:
             page_num = page_file.replace("page_", "").replace(".json", "")
             analysis_file = f"page_{page_num}_analysis.json"
             scenario_file = f"page_{page_num}_scenarios.json"
+            analysis_payload = analysis.get(analysis_file, {})
+            if analysis_payload and "analysis_status" not in analysis_payload:
+                # Geriye dönük uyumluluk: eski analiz kayıtlarında status yoksa analyzed kabul et.
+                analysis_payload["analysis_status"] = "analyzed"
+            if not analysis_payload and not bool(page_data.get("_had_html")):
+                analysis_payload = {
+                    "analysis_status": "skipped_no_html",
+                    "skip_reason": page_data.get("no_html_reason", "html_missing_unknown")
+                }
             
             page_entry = {
                 "id": int(page_num),
                 "url": page_data.get("url", ""),
                 "title": page_data.get("title", ""),
                 "status_code": page_data.get("status_code", 0),
-                "has_content": bool(page_data.get("markdown")),
-                "analysis": analysis.get(analysis_file, {}),
+                "has_content": bool(page_data.get("_had_html")),
+                "headers_source": page_data.get("headers_source", "missing"),
+                "no_html_reason": page_data.get("no_html_reason", ""),
+                "analysis": analysis_payload,
                 "scenarios": scenarios.get(scenario_file, {}).get("scenarios", [])
             }
             
@@ -178,9 +191,11 @@ class JSONReporter:
         
         # Temel istatistikler
         total_pages = len(pages)
-        pages_with_content = sum(1 for p in pages if p.get("has_content"))
         pages_with_analysis = sum(1 for p in pages if p.get("analysis"))
         fetch_success_pages = sum(1 for p in pages if 200 <= int(p.get("status_code", 0) or 0) < 400)
+        analyzed_pages = 0
+        skipped_no_html_pages = 0
+        failed_runtime_pages = 0
         
         # Güvenlik skorları
         security_scores = []
@@ -198,6 +213,14 @@ class JSONReporter:
             analysis = page.get("analysis", {})
             
             if analysis:
+                status = analysis.get("analysis_status")
+                if status == "analyzed":
+                    analyzed_pages += 1
+                elif status == "skipped_no_html":
+                    skipped_no_html_pages += 1
+                elif status == "failed_runtime":
+                    failed_runtime_pages += 1
+
                 # Güvenlik
                 headers = analysis.get("headers", {})
                 if headers.get("score") is not None:
@@ -231,9 +254,10 @@ class JSONReporter:
         avg_seo = round(sum(seo_scores) / len(seo_scores), 1) if seo_scores else 0
         avg_overall = round(sum(overall_scores) / len(overall_scores), 1) if overall_scores else 0
         fetch_success_rate = round((fetch_success_pages / total_pages) * 100, 1) if total_pages else 0
-        html_availability_rate = round((pages_with_content / total_pages) * 100, 1) if total_pages else 0
-        analysis_coverage_rate = round((pages_with_analysis / total_pages) * 100, 1) if total_pages else 0
-        header_measurement_rate = round((header_measured_pages / pages_with_analysis) * 100, 1) if pages_with_analysis else 0
+        html_pages = sum(1 for p in pages if p.get("has_content"))
+        html_availability_rate = round((html_pages / total_pages) * 100, 1) if total_pages else 0
+        analysis_coverage_rate = round((analyzed_pages / total_pages) * 100, 1) if total_pages else 0
+        header_measurement_rate = round((header_measured_pages / analyzed_pages) * 100, 1) if analyzed_pages else 0
         
         # Grade hesapla
         def get_grade(score):
@@ -244,9 +268,14 @@ class JSONReporter:
         
         return {
             "total_pages": total_pages,
-            "pages_analyzed": pages_with_content,
+            "pages_analyzed": analyzed_pages,
             "pages_with_analysis": pages_with_analysis,
-            "pages_skipped": total_pages - pages_with_content,
+            "pages_skipped": total_pages - analyzed_pages,
+            "analysis_status_counts": {
+                "analyzed": analyzed_pages,
+                "skipped_no_html": skipped_no_html_pages,
+                "failed_runtime": failed_runtime_pages
+            },
             "total_broken_links": total_broken_links,
             "total_broken_strict": total_broken_strict,
             "total_rate_limited": total_rate_limited,
