@@ -1,64 +1,44 @@
-Sen deneyimli bir QA automation engineer'ısın. Aşağıdaki web sayfası için ACTIONABLE test senaryoları üret.
+You are a senior QA automation engineer.
+Generate ACTIONABLE test scenarios for the webpage below.
 
-SAYFA BİLGİLERİ:
+PAGE INFO:
 URL: {url}
-Başlık: {title}
-Güvenlik: CSP {csp_status}, HSTS {hsts_status}
+Title: {title}
+Security: CSP {csp_status}, HSTS {hsts_status}
 SEO: H1={h1_count}, Meta={meta_description_status}
-Link Durumu: {broken_links}
+Link Status: {broken_links}
 
-İçerik:
+Content:
 {markdown_content}
 
-ÖNEMLİ KURALLAR:
-1. Her senaryo SPESİFİK olmalı (Generic "Test Security" DEĞİL, "CSP başlığının varlığını doğrula" gibi)
-2. Steps içine metadata YAZMA (Title:, Priority: gibi)
-3. Steps her biri executable bir adım olmalı
-4. Priority'yi analiz verisine göre belirle (missing CSP = high, broken links = medium)
-5. Markdown işaretlerini temizle (** kullanma)
-6. TÜM senaryoları TEK BİR JSON ARRAY içinde döndür
-7. Her senaryo için expected sonucu ÖLÇÜLEBİLİR yaz (ör: \"HTTP 200 döner\", \"header mevcut değildir\", \"H1 sayısı 1 olmalı\")
-8. Belirsiz/generic expected yazma (\"başarıyla tamamlanmalı\", \"SEO optimizasyonu zor\" gibi)
-9. Sadece verilen analiz verisindeki bulgulara dayan; uydurma güvenlik iddiası üretme
+STRICT RULES:
+1. Output must be in ENGLISH only.
+2. Each scenario must be specific (avoid generic titles like "Test Security").
+3. Do not put metadata labels inside steps (no "Title:", "Priority:").
+4. Each step must be executable.
+5. Priority must follow analysis severity (missing CSP=high, broken links=medium).
+6. Expected result must be measurable (e.g., "HTTP 200", "header is missing", "H1 count is 1").
+7. Do not use vague expected text (e.g., "should work", "successfully completed").
+8. Use only findings present in the given analysis data. No fabricated claims.
+9. Return ALL scenarios in ONE JSON array, inside ONE ```json block.
 
-YANIT FORMATI - SADECE BU FORMATTA JSON ARRAY (başka açıklama, başlık veya text ekleme!):
+RESPONSE FORMAT (JSON ONLY):
 ```json
 [
-  {{
+  {
     "scenario_id": 1,
-    "title": "Content Security Policy başlığının eksikliğini test et",
+    "title": "Verify missing Content-Security-Policy header",
     "steps": [
-      "Chrome DevTools'u aç (F12)",
-      "Network tab'ına git",
-      "Sayfayı yenile (Ctrl+R)",
-      "Response Headers'da 'content-security-policy' ara",
-      "Başlığın mevcut olmadığını doğrula"
+      "Open Chrome DevTools (F12)",
+      "Go to the Network tab",
+      "Reload the page",
+      "Inspect response headers for content-security-policy",
+      "Confirm the header is absent"
     ],
-    "expected": "CSP başlığı eksik olduğu için XSS saldırılarına açık",
+    "expected": "HTTP 200 is returned and content-security-policy header is absent",
     "priority": "high"
-  }},
-  {{
-    "scenario_id": 2,
-    "title": "Sosyal medya linklerinin bot protection'ını test et",
-    "steps": [
-      "LinkedIn profil linkine tıkla",
-      "HTTP 999 veya 403 hatası aldığını gözlemle",
-      "User-Agent header ekleyerek curl ile tekrar dene",
-      "Farklı browser'lardan erişimi test et"
-    ],
-    "expected": "Bot protection nedeniyle LinkedIn/Medium linkleri bazı durumlarda 403/999 dönebilir",
-    "priority": "medium"
-  }},
-  {{
-    "scenario_id": 3,
-    "title": "Üçüncü senaryo başlığı",
-    "steps": ["adım1", "adım2"],
-    "expected": "beklenen sonuç",
-    "priority": "low"
-  }}
+  }
 ]
 ```
 
-ÖNEMLİ: Yukarıdaki gibi TÜM senaryoları tek bir JSON array içinde, tek bir ```json bloğunda döndür. Her senaryo için ayrı blok AÇMA!
-
-Şimdi 2-3 senaryo üret.
+Now generate 2-3 scenarios.

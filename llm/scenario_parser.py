@@ -27,7 +27,11 @@ class ScenarioParser:
         "kullanıcı yönlendiriliyor",
         "seo optimizasyonu zor",
         "beklenen sonuç belirtilmedi",
-        "kalıcı linkler kalıcı olmalı"
+        "kalıcı linkler kalıcı olmalı",
+        "should work",
+        "successfully completed",
+        "expected result is not specified",
+        "user is redirected"
     ]
     MEASURABLE_EXPECTED_HINTS = [
         "http ",
@@ -40,7 +44,11 @@ class ScenarioParser:
         "olmalı",
         "döner",
         "bulunur",
-        "bulunmaz"
+        "bulunmaz",
+        "present",
+        "missing",
+        "count",
+        "equals"
     ]
     
     def parse(self, llm_response: str) -> Dict[str, Any]:
@@ -326,7 +334,7 @@ class ScenarioParser:
                                 "scenario_id": int(scenario_id) if scenario_id.isdigit() else i,
                                 "title": content[:100].split('\n')[0].strip(),
                                 "steps": steps[:5],
-                                "expected": "Başarıyla tamamlanmalı",
+                                "expected": "HTTP 200 is returned and the scenario steps complete as described",
                                 "priority": "medium"
                             })
                 

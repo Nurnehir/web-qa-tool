@@ -47,30 +47,30 @@ class PromptBuilder:
     
     def _get_default_template(self) -> str:
         """Varsayılan şablonu döner."""
-        return """Sen deneyimli bir QA test mühendisisin.
-Aşağıdaki web sayfası için test senaryoları üret.
+        return """You are a senior QA test engineer.
+Generate test scenarios for the webpage below.
 
-SAYFA URL: {url}
+PAGE URL: {url}
 
-SAYFA İÇERİĞİ:
+PAGE CONTENT:
 {markdown_content}
 
-GÜVENLİK DURUMU:
+SECURITY:
 - CSP: {csp_status}
 - HSTS: {hsts_status}
 
-SEO DURUMU:
-- Başlık: {title}
-- H1 Sayısı: {h1_count}
+SEO:
+- Title: {title}
+- H1 Count: {h1_count}
 
-3-5 adet test senaryosu üret. JSON formatında yanıt ver:
+Generate 2-3 scenarios. Return JSON only:
 ```json
 [
   {{
     "scenario_id": 1,
-    "title": "Senaryo başlığı",
-    "steps": ["Adım 1", "Adım 2"],
-    "expected": "Beklenen sonuç",
+    "title": "Scenario title",
+    "steps": ["Step 1", "Step 2"],
+    "expected": "Expected result",
     "priority": "high"
   }}
 ]
@@ -106,24 +106,24 @@ SEO DURUMU:
         rate_limited = links_summary.get("rate_limited", 0)
         if strict_broken or transient or client_error or rate_limited:
             broken_links_text = (
-                f"kalıcı={strict_broken}, transient={transient}, "
+                f"strict={strict_broken}, transient={transient}, "
                 f"client_error={client_error}, rate_limited={rate_limited}"
             )
         else:
-            broken_links_text = "problemli link bulunamadı"
+            broken_links_text = "no problematic links found"
         
         # Şablona değerleri yerleştir
         prompt = self.template.format(
             url=page_data.get("url", "Bilinmeyen URL"),
             markdown_content=markdown,
-            csp_status="Mevcut ✓" if headers_summary.get("csp") else "Eksik ✗",
-            hsts_status="Mevcut ✓" if headers_summary.get("hsts") else "Eksik ✗",
-            xframe_status="Mevcut ✓" if headers_summary.get("x_frame_options") else "Eksik ✗",
-            xcontent_status="Mevcut ✓" if headers_summary.get("x_content_type_options") else "Eksik ✗",
+            csp_status="Present ✓" if headers_summary.get("csp") else "Missing ✗",
+            hsts_status="Present ✓" if headers_summary.get("hsts") else "Missing ✗",
+            xframe_status="Present ✓" if headers_summary.get("x_frame_options") else "Missing ✗",
+            xcontent_status="Present ✓" if headers_summary.get("x_content_type_options") else "Missing ✗",
             broken_links=broken_links_text,
-            title=seo.get("title", "Başlık yok"),
+            title=seo.get("title", "No title"),
             title_length=seo.get("title_length", 0),
-            meta_description_status="Mevcut ✓" if seo.get("meta_description") else "Eksik ✗",
+            meta_description_status="Present ✓" if seo.get("meta_description") else "Missing ✗",
             h1_count=seo.get("h1_count", 0),
             missing_alts=seo.get("missing_alts", 0)
         )
