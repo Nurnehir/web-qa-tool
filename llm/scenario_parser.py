@@ -21,6 +21,27 @@ class ScenarioParser:
     def __init__(self):
         """ScenarioParser sınıfını başlatır."""
         pass
+
+    GENERIC_EXPECTED_PATTERNS = [
+        "başarıyla tamamlanmalı",
+        "kullanıcı yönlendiriliyor",
+        "seo optimizasyonu zor",
+        "beklenen sonuç belirtilmedi",
+        "kalıcı linkler kalıcı olmalı"
+    ]
+    MEASURABLE_EXPECTED_HINTS = [
+        "http ",
+        "status",
+        "header",
+        "başlık",
+        "mevcut",
+        "eksik",
+        "sayısı",
+        "olmalı",
+        "döner",
+        "bulunur",
+        "bulunmaz"
+    ]
     
     def parse(self, llm_response: str) -> Dict[str, Any]:
         """
@@ -172,6 +193,9 @@ class ScenarioParser:
         
         # Markdown işaretlerini temizle
         title = str(title).strip().replace("**", "").replace("*", "")
+        title = self._normalize_text(title)
+        if len(title) < 8:
+            return None
         
         # Adımları al
         steps = scenario.get("steps") or scenario.get("adimlar") or scenario.get("test_steps") or []
@@ -193,6 +217,9 @@ class ScenarioParser:
             
             # Markdown temizle
             step_str = step_str.replace("**", "").replace("*", "")
+            step_str = self._normalize_text(step_str)
+            if len(step_str) < 8:
+                continue
             cleaned_steps.append(step_str)
         
         # En az 2 geçerli adım olmalı
@@ -208,11 +235,13 @@ class ScenarioParser:
             scenario.get("beklenen_sonuc") or
             "Beklenen sonuç belirtilmedi"
         )
-        expected = str(expected).strip()
+        expected = self._normalize_text(str(expected).strip())
         expected_lower = expected.lower()
         if len(expected) < 12:
             return None
         if any(pattern in expected_lower for pattern in self.GENERIC_EXPECTED_PATTERNS):
+            return None
+        if not any(hint in expected_lower for hint in self.MEASURABLE_EXPECTED_HINTS):
             return None
         
         # Önceliği al ve normalize et
@@ -246,6 +275,13 @@ class ScenarioParser:
             seen.add(key)
             unique.append(s)
         return unique
+
+    def _normalize_text(self, text: str) -> str:
+        """Basit metin normalizasyonu."""
+        t = re.sub(r"\s+", " ", text).strip()
+        t = re.sub(r"[\s'\"`]+$", "", t)
+        t = re.sub(r"\(\s*$", "", t).strip()
+        return t
     
     def _parse_as_text(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -323,9 +359,3 @@ class ScenarioParser:
             output.append(f"  Beklenen: {s['expected']}")
         
         return "\n".join(output)
-    GENERIC_EXPECTED_PATTERNS = [
-        "başarıyla tamamlanmalı",
-        "kullanıcı yönlendiriliyor",
-        "seo optimizasyonu zor",
-        "beklenen sonuç belirtilmedi"
-    ]
