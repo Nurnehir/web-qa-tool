@@ -99,7 +99,10 @@ class LLMRunner:
         if self.scenario_max_pages and self.scenario_max_pages > 0:
             analysis_files = analysis_files[: self.scenario_max_pages]
         
-        print(f"[LLM] {len(analysis_files)} sayfa için senaryo üretilecek...")
+        print(
+            f"[LLM] {len(analysis_files)} sayfa için senaryo üretilecek..."
+            f" (scenario_max_pages={self.scenario_max_pages or 'unlimited'})"
+        )
         if self.verbose:
             print("=" * 50)
         
@@ -136,12 +139,12 @@ class LLMRunner:
                 
                 if parsed["parse_success"]:
                     self._log(f"[LLM] {len(parsed['scenarios'])} senaryo üretildi")
+                    # Sonucu kaydet
+                    scenario_file = self._save_scenarios(parsed, analysis_file)
+                    saved_files.append(scenario_file)
                 else:
                     print(f"[LLM] UYARI: Ayrıştırma sorunu - {parsed.get('error', 'Bilinmeyen hata')}")
-                
-                # Sonucu kaydet
-                scenario_file = self._save_scenarios(parsed, analysis_file)
-                saved_files.append(scenario_file)
+                    continue
                 
                 # Özet yazdır
                 if self.verbose:
