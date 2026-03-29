@@ -9,6 +9,8 @@ import json
 import os
 from typing import List, Dict, Any
 from markdownify import markdownify as md
+import httpx
+import re
 
 
 class PageSaver:
@@ -19,7 +21,12 @@ class PageSaver:
         output_dir (str): Sayfa JSON dosyalarının kaydedileceği klasör
     """
     
-    def __init__(self, output_dir: str = "output/pages"):
+    def __init__(
+        self,
+        output_dir: str = "output/pages",
+        fallback_fetch_skipped: bool = True,
+        fallback_timeout: float = 15.0
+    ):
         """
         PageSaver sınıfını başlatır.
         
@@ -27,6 +34,8 @@ class PageSaver:
             output_dir: Çıktı klasörü yolu
         """
         self.output_dir = output_dir
+        self.fallback_fetch_skipped = fallback_fetch_skipped
+        self.fallback_timeout = fallback_timeout
         self._ensure_directory()
     
     def _ensure_directory(self) -> None:
@@ -94,8 +103,38 @@ class PageSaver:
         metadata = page.get("metadata", {})
         raw_headers = page.get("headers", {})
         status_code = metadata.get("status", page.get("statusCode", 200))
+
+        # Cloudflare kaydı skipped/no-html ise düz HTTP fallback dene.
+        if (
+            self.fallback_fetch_skipped
+            and not html_content
+            and page.get("status") == "skipped"
+            and page.get("url")
+        ):
+            fallback = self._fallback_fetch_page(page.get("url"))
+            if fallback.get("html"):
+                html_content = fallback.get("html", "")
+                raw_headers = fallback.get("headers", {}) or raw_headers
+                status_code = fallback.get("status_code", status_code)
+                if not metadata.get("title") and fallback.get("title"):
+                    metadata["title"] = fallback.get("title")
+                if not metadata.get("lastModified") and fallback.get("last_modified"):
+                    metadata["lastModified"] = fallback.get("last_modified")
+                if fallback.get("content_type"):
+                    metadata["contentType"] = fallback.get("content_type")
+                # markdown fallback üret
+                if not markdown_content:
+                    try:
+                        markdown_content = md(html_content, heading_style="ATX", strip=['script', 'style'])
+                    except Exception:
+                        markdown_content = ""
+                # fallback ile veri alındıysa crawl status'u overridden olarak işaretle
+                page["status"] = "fallback_completed"
+
         no_html_reason = self._infer_no_html_reason(page, metadata, status_code, html_content)
         headers_source = "from_crawl_record" if raw_headers else "missing"
+        if page.get("status") == "fallback_completed" and raw_headers:
+            headers_source = "fetched_later"
         
         return {
             "url": page.get("url", metadata.get("url", "")),
@@ -113,6 +152,49 @@ class PageSaver:
             "no_html_reason": no_html_reason,
             "crawl_metadata": metadata
         }
+
+    def _fallback_fetch_page(self, url: str) -> Dict[str, Any]:
+        """Cloudflare skipped kayıtları için doğrudan HTTP GET fallback."""
+        result = {
+            "html": "",
+            "headers": {},
+            "status_code": None,
+            "title": "",
+            "last_modified": "",
+            "content_type": ""
+        }
+        try:
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9"
+            }
+            with httpx.Client(timeout=self.fallback_timeout, follow_redirects=True, headers=headers) as client:
+                response = client.get(url)
+            text = response.text or ""
+            content_type = response.headers.get("content-type", "")
+            if text and ("html" in content_type.lower() or "<html" in text.lower()):
+                result["html"] = text
+            result["headers"] = dict(response.headers)
+            result["status_code"] = response.status_code
+            result["content_type"] = content_type
+            result["last_modified"] = response.headers.get("last-modified", "")
+            result["title"] = self._extract_title(text)
+        except Exception:
+            return result
+        return result
+
+    def _extract_title(self, html: str) -> str:
+        """Basit regex ile title çıkarır."""
+        if not html:
+            return ""
+        match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
+        if not match:
+            return ""
+        return re.sub(r"\s+", " ", match.group(1)).strip()[:200]
 
     def _infer_no_html_reason(
         self,

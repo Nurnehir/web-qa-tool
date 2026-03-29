@@ -7,7 +7,7 @@ hedef sitenin tüm sayfalarını tarar.
 
 import httpx
 import time
-from typing import Optional
+from typing import Optional, List
 
 
 class CloudflareCrawler:
@@ -36,7 +36,16 @@ class CloudflareCrawler:
         self.account_id = account_id
         self.base_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/browser-rendering"
     
-    def crawl(self, target_url: str, max_pages: int = 50) -> Optional[dict]:
+    def crawl(
+        self,
+        target_url: str,
+        max_pages: int = 50,
+        depth: int = 3,
+        include_subdomains: bool = True,
+        include_external_links: bool = False,
+        formats: Optional[List[str]] = None,
+        render: bool = True
+    ) -> Optional[dict]:
         """
         Hedef URL'yi tarar ve tüm sayfaları döner.
         
@@ -53,7 +62,16 @@ class CloudflareCrawler:
         }
         
         # Adım 1: Crawl işini başlat
-        task_id = self._start_crawl(target_url, max_pages, headers)
+        task_id = self._start_crawl(
+            target_url=target_url,
+            max_pages=max_pages,
+            depth=depth,
+            include_subdomains=include_subdomains,
+            include_external_links=include_external_links,
+            formats=formats or ["html", "markdown"],
+            render=render,
+            headers=headers
+        )
         if not task_id:
             return None
         
@@ -61,7 +79,17 @@ class CloudflareCrawler:
         result = self._get_crawl_result(task_id, headers)
         return result
     
-    def _start_crawl(self, target_url: str, max_pages: int, headers: dict) -> Optional[str]:
+    def _start_crawl(
+        self,
+        target_url: str,
+        max_pages: int,
+        depth: int,
+        include_subdomains: bool,
+        include_external_links: bool,
+        formats: List[str],
+        render: bool,
+        headers: dict
+    ) -> Optional[str]:
         """
         Crawl işini başlatır ve task_id döner.
         
@@ -77,18 +105,22 @@ class CloudflareCrawler:
         payload = {
             "url": target_url,
             "limit": max_pages,
-            "depth": 3,
-            "formats": ["html", "markdown"],
-            "render": True,
+            "depth": depth,
+            "formats": formats,
+            "render": render,
             "options": {
-                "includeSubdomains": False,
-                "includeExternalLinks": False
+                "includeSubdomains": include_subdomains,
+                "includeExternalLinks": include_external_links
             }
         }
         
         try:
             print(f"[CRAWLER] Tarama başlatılıyor: {target_url}")
-            print(f"[CRAWLER] Maksimum sayfa: {max_pages}, Derinlik: 3")
+            print(f"[CRAWLER] Maksimum sayfa: {max_pages}, Derinlik: {depth}")
+            print(
+                f"[CRAWLER] includeSubdomains={include_subdomains}, "
+                f"includeExternalLinks={include_external_links}, render={render}"
+            )
             
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(

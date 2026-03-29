@@ -99,7 +99,12 @@ def main():
     
     crawl_result = crawler.crawl(
         target_url=config["target_url"],
-        max_pages=config["max_pages"]
+        max_pages=config["max_pages"],
+        depth=config.get("crawl_depth", 3),
+        include_subdomains=config.get("include_subdomains", True),
+        include_external_links=config.get("include_external_links", False),
+        formats=config.get("crawl_formats", ["html", "markdown"]),
+        render=config.get("render", True)
     )
     
     if not crawl_result:
@@ -107,7 +112,10 @@ def main():
         sys.exit(1)
     
     # Sayfaları kaydet
-    saver = PageSaver()
+    saver = PageSaver(
+        fallback_fetch_skipped=config.get("fallback_fetch_skipped", True),
+        fallback_timeout=config.get("fallback_timeout", 15.0)
+    )
     saver.clear_output()  # Önceki verileri temizle
     
     # Analiz ve senaryo klasörlerini de temizle

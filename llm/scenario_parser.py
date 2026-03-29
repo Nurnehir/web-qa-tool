@@ -255,7 +255,12 @@ class ScenarioParser:
                             # İçerikten adımları çıkarmayı dene
                             steps = re.findall(r'[-•*]\s*(.+)', content)
                             if not steps:
-                                steps = [content[:200]]
+                                # Cümle/paragraf fallback'i ile en az 2 aksiyon adımı üretmeyi dene
+                                parts = [p.strip() for p in re.split(r'[.\n]+', content) if p.strip()]
+                                steps = parts[:4]
+                            # Tek adımlı/generic senaryoları ele
+                            if len(steps) < 2:
+                                continue
                             
                             scenarios.append({
                                 "scenario_id": int(scenario_id) if scenario_id.isdigit() else i,
