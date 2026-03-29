@@ -28,7 +28,8 @@ class LLMRunner:
         scenarios_dir: str = "output/scenarios",
         ollama_url: str = "http://localhost:11434",
         model: str = "llama3",
-        verbose: bool = True
+        verbose: bool = True,
+        scenario_max_pages: int = 0
     ):
         """
         LLMRunner sınıfını başlatır.
@@ -44,6 +45,7 @@ class LLMRunner:
         self.analysis_dir = analysis_dir
         self.scenarios_dir = scenarios_dir
         self.verbose = verbose
+        self.scenario_max_pages = scenario_max_pages
         
         # Bileşenleri başlat
         self.prompt_builder = PromptBuilder()
@@ -92,6 +94,10 @@ class LLMRunner:
         if not analysis_files:
             print("[LLM] UYARI: Analiz dosyası bulunamadı.")
             return saved_files
+
+        analysis_files = self._prioritize_analysis_files(analysis_files)
+        if self.scenario_max_pages and self.scenario_max_pages > 0:
+            analysis_files = analysis_files[: self.scenario_max_pages]
         
         print(f"[LLM] {len(analysis_files)} sayfa için senaryo üretilecek...")
         if self.verbose:
@@ -149,6 +155,29 @@ class LLMRunner:
         print(f"[LLM] Toplam {len(saved_files)} senaryo dosyası oluşturuldu.")
         
         return saved_files
+
+    def _prioritize_analysis_files(self, analysis_files: List[str]) -> List[str]:
+        """
+        Analiz dosyalarını risk seviyesine göre sıralar (yüksekten düşüğe).
+        Risk = 100 - overall_score.
+        """
+        scored = []
+        for path in analysis_files:
+            risk = 100.0
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                overall = data.get("overall_score", {}).get("score")
+                if overall is not None:
+                    risk = max(0.0, 100.0 - float(overall))
+                else:
+                    # Skor yoksa (ör. ölçüm eksik) yüksek öncelik ver.
+                    risk = 100.0
+            except Exception:
+                risk = 100.0
+            scored.append((risk, path))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [p for _, p in scored]
     
     def _get_analysis_files(self) -> List[str]:
         """

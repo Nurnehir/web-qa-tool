@@ -179,7 +179,8 @@ def main():
     llm_runner = LLMRunner(
         ollama_url=config["ollama_url"],
         model=config["ollama_model"],
-        verbose=verbose_mode
+        verbose=verbose_mode,
+        scenario_max_pages=config.get("scenario_max_pages", 0)
     )
     
     scenario_files = llm_runner.run()

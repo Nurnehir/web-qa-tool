@@ -15,5 +15,6 @@
   "quiet_mode": true,
   "max_links_per_page": 150,
   "check_asset_links": false,
-  "link_max_retries": 1
+  "link_max_retries": 1,
+  "scenario_max_pages": 10
 }
