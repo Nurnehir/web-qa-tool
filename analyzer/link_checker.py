@@ -9,7 +9,8 @@ import httpx
 from bs4 import BeautifulSoup
 from typing import Dict, Any, List, Set
 from urllib.parse import urljoin, urlparse
-import asyncio
+import re
+import time
 
 
 class LinkChecker:
@@ -35,7 +36,7 @@ class LinkChecker:
     # Atlanacak protokoller
     SKIP_PROTOCOLS = ["mailto:", "tel:", "javascript:", "data:", "#"]
     
-    def __init__(self, timeout: float = 5.0, max_concurrent: int = 10):
+    def __init__(self, timeout: float = 5.0, max_concurrent: int = 10, max_retries: int = 2):
         """
         LinkChecker sınıfını başlatır.
         
@@ -45,6 +46,7 @@ class LinkChecker:
         """
         self.timeout = timeout
         self.max_concurrent = max_concurrent
+        self.max_retries = max_retries
     
     def check(self, url: str, html_content: str) -> Dict[str, Any]:
         """
@@ -150,6 +152,13 @@ class LinkChecker:
                     
                     # Göreceli URL'yi mutlak URL'ye çevir
                     absolute_url = urljoin(base_url, link)
+                    absolute_url = self._normalize_url(absolute_url)
+                    if not absolute_url:
+                        result["skipped"].append({
+                            "url": link,
+                            "reason": "Geçersiz URL"
+                        })
+                        continue
                     
                     # Tekrarları atla
                     if absolute_url in seen_urls:
@@ -176,6 +185,35 @@ class LinkChecker:
             print(f"[LINK_CHECKER] HTML parse hatası: {str(e)}")
         
         return result
+
+    def _normalize_url(self, raw_url: str) -> str:
+        """
+        URL'yi canonical forma yakınlaştırır.
+
+        - fragment kaldırılır
+        - path içindeki çoklu slash'lar tek slash'a düşürülür
+        - scheme ve host normalize edilir
+        """
+        try:
+            parsed = urlparse(raw_url)
+            if not parsed.scheme or not parsed.netloc:
+                return ""
+
+            scheme = parsed.scheme.lower()
+            netloc = parsed.netloc.lower()
+
+            path = parsed.path or "/"
+            path = re.sub(r"/{2,}", "/", path)
+            if not path.startswith("/"):
+                path = "/" + path
+
+            query = parsed.query
+            normalized = f"{scheme}://{netloc}{path}"
+            if query:
+                normalized += f"?{query}"
+            return normalized
+        except Exception:
+            return ""
     
     def _check_links_sync(self, urls: List[str]) -> List[Dict[str, Any]]:
         """
@@ -218,40 +256,91 @@ class LinkChecker:
             "url": url,
             "status_code": None,
             "is_broken": False,
-            "error": None
+            "error": None,
+            "category": "unknown",
+            "attempts": 0
         }
         
-        try:
-            # Önce HEAD dene (daha hızlı)
-            response = client.head(url)
-            result["status_code"] = response.status_code
-            
-            # HEAD 405/403 dönerse GET ile tekrar dene
-            if response.status_code in [403, 405]:
-                try:
-                    response = client.get(url)
-                    result["status_code"] = response.status_code
-                except:
-                    pass  # HEAD sonucunu kullan
-            
-            # Sadece gerçek hatalar için kırık işaretle
-            # 2xx ve 3xx başarılı sayılır
-            if response.status_code >= 400:
+        for attempt in range(1, self.max_retries + 2):
+            result["attempts"] = attempt
+            try:
+                # Önce HEAD dene (daha hızlı)
+                response = client.head(url)
+                result["status_code"] = response.status_code
+
+                # HEAD 405/403 dönerse GET ile tekrar dene
+                if response.status_code in [403, 405]:
+                    try:
+                        response = client.get(url)
+                        result["status_code"] = response.status_code
+                    except Exception:
+                        pass  # HEAD sonucunu kullan
+
+                status = response.status_code
+                if status < 400:
+                    result["is_broken"] = False
+                    result["category"] = "ok"
+                    return result
+
+                if status in (404, 410):
+                    result["is_broken"] = True
+                    result["category"] = "broken_strict"
+                    result["error"] = f"HTTP {status}"
+                    return result
+
+                if status == 429:
+                    result["is_broken"] = True
+                    result["category"] = "rate_limited"
+                    result["error"] = "HTTP 429"
+                    if attempt <= self.max_retries:
+                        time.sleep(0.4 * attempt)
+                        continue
+                    return result
+
+                if 500 <= status < 600:
+                    result["is_broken"] = True
+                    result["category"] = "server_error"
+                    result["error"] = f"HTTP {status}"
+                    if attempt <= self.max_retries:
+                        time.sleep(0.4 * attempt)
+                        continue
+                    return result
+
+                # Diğer 4xx hataları
                 result["is_broken"] = True
-                result["error"] = f"HTTP {response.status_code}"
-                
-        except httpx.TimeoutException:
-            result["is_broken"] = True
-            result["error"] = "Zaman aşımı"
-        except httpx.ConnectError:
-            result["is_broken"] = True
-            result["error"] = "Bağlantı hatası"
-        except httpx.TooManyRedirects:
-            result["is_broken"] = True
-            result["error"] = "Çok fazla yönlendirme"
-        except Exception as e:
-            result["is_broken"] = True
-            result["error"] = str(e)[:100]
+                result["category"] = "client_error"
+                result["error"] = f"HTTP {status}"
+                return result
+
+            except httpx.TimeoutException:
+                result["is_broken"] = True
+                result["category"] = "transient_network"
+                result["error"] = "Zaman aşımı"
+                if attempt <= self.max_retries:
+                    time.sleep(0.4 * attempt)
+                    continue
+                return result
+            except httpx.ConnectError:
+                result["is_broken"] = True
+                result["category"] = "transient_network"
+                result["error"] = "Bağlantı hatası"
+                if attempt <= self.max_retries:
+                    time.sleep(0.4 * attempt)
+                    continue
+                return result
+            except httpx.TooManyRedirects:
+                result["is_broken"] = True
+                result["category"] = "client_error"
+                result["error"] = "Çok fazla yönlendirme"
+                return result
+            except Exception as e:
+                result["is_broken"] = True
+                result["category"] = "unknown"
+                result["error"] = str(e)[:100]
+                if attempt <= self.max_retries:
+                    time.sleep(0.4 * attempt)
+                    continue
+                return result
         
         return result
     
@@ -268,12 +357,27 @@ class LinkChecker:
         broken_count = len(result.get("broken_links", []))
         total = result.get("total_links", 0)
         checked = result.get("checked_links", 0)
+
+        broken_links = result.get("broken_links", [])
+        strict_broken = sum(1 for item in broken_links if item.get("category") == "broken_strict")
+        server_errors = sum(1 for item in broken_links if item.get("category") == "server_error")
+        rate_limited = sum(1 for item in broken_links if item.get("category") == "rate_limited")
+        transient = sum(1 for item in broken_links if item.get("category") == "transient_network")
+        client_other = sum(1 for item in broken_links if item.get("category") == "client_error")
+        unknown = sum(1 for item in broken_links if item.get("category") == "unknown")
         
         return {
             "total_links": total,
             "checked": checked,
             "broken": broken_count,
+            "broken_strict": strict_broken,
+            "server_error": server_errors,
+            "rate_limited": rate_limited,
+            "transient_network": transient,
+            "client_error": client_other,
+            "unknown_error": unknown,
             "working": checked - broken_count,
             "skipped": len(result.get("skipped_links", [])),
-            "health_percentage": round(((checked - broken_count) / checked * 100), 1) if checked > 0 else 100
+            "health_percentage": round(((checked - broken_count) / checked * 100), 1) if checked > 0 else 100,
+            "strict_health_percentage": round(((checked - strict_broken) / checked * 100), 1) if checked > 0 else 100
         }

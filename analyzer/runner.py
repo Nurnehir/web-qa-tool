@@ -164,18 +164,24 @@ class AnalyzerRunner:
         analysis = {
             "url": url,
             "analyzed_at": self._get_timestamp(),
+            "analysis_status": "analyzed",
             "headers": {
                 "summary": header_result.get("summary", {}),
-                "score": header_result.get("percentage", 0),
+                "score": header_result.get("percentage"),
                 "found": len(header_result.get("headers_found", {})),
                 "missing": len(header_result.get("headers_missing", [])),
+                "measurement_status": header_result.get("measurement_status", "not_measured"),
+                "error_type": header_result.get("error_type"),
                 "details": header_result.get("details", []),
                 "recommendations": self.header_checker.get_recommendations(header_result)
             },
             "broken_links": [
                 {
                     "url": bl["url"],
-                    "error": bl["error"]
+                    "error": bl["error"],
+                    "category": bl.get("category"),
+                    "status_code": bl.get("status_code"),
+                    "attempts": bl.get("attempts", 1)
                 }
                 for bl in link_result.get("broken_links", [])
             ],
@@ -210,16 +216,32 @@ class AnalyzerRunner:
         Returns:
             Genel skor bilgileri
         """
-        # Ağırlıklı ortalama hesapla
-        header_score = header_result.get("percentage", 0)
+        # Ölçüm yapılamayan güvenlik sonuçlarını skora zorla 0 olarak katma.
+        header_score = header_result.get("percentage")
+        header_measured = header_result.get("measurement_status") == "measured"
         
         link_summary = self.link_checker.get_summary(link_result)
-        link_score = link_summary.get("health_percentage", 100)
+        # Link skoru için kalıcı kırıkları temel al.
+        link_score = link_summary.get("strict_health_percentage", 100)
         
         seo_score = seo_result.get("percentage", 0)
-        
-        # Ağırlıklar: Güvenlik %40, Linkler %20, SEO %40
-        overall = (header_score * 0.4) + (link_score * 0.2) + (seo_score * 0.4)
+
+        weighted_parts = []
+        if header_measured and header_score is not None:
+            weighted_parts.append((header_score, 0.4))
+        weighted_parts.append((link_score, 0.2))
+        weighted_parts.append((seo_score, 0.4))
+
+        weight_sum = sum(weight for _, weight in weighted_parts)
+        overall = sum(score * weight for score, weight in weighted_parts) / weight_sum if weight_sum else 0
+
+        measured_ratio = len(weighted_parts) / 3
+        if measured_ratio >= 1:
+            confidence = "high"
+        elif measured_ratio >= 0.67:
+            confidence = "medium"
+        else:
+            confidence = "low"
         
         # Değerlendirme
         if overall >= 80:
@@ -239,8 +261,9 @@ class AnalyzerRunner:
             "score": round(overall, 1),
             "grade": grade,
             "status": status,
+            "confidence": confidence,
             "breakdown": {
-                "security": round(header_score, 1),
+                "security": round(header_score, 1) if header_score is not None else None,
                 "links": round(link_score, 1),
                 "seo": round(seo_score, 1)
             }
@@ -276,8 +299,11 @@ class AnalyzerRunner:
         
         print(f"  ────────────────────────────────────")
         print(f"  │ Genel Skor: {overall.get('score', 0)}% ({overall.get('grade', 'N/A')})")
-        print(f"  │ Güvenlik: {headers.get('score', 0)}% ({headers.get('found', 0)}/{headers.get('found', 0) + headers.get('missing', 0)} başlık)")
-        print(f"  │ Linkler: {links.get('health_percentage', 100)}% ({links.get('broken', 0)} kırık)")
+        if headers.get("measurement_status") == "measured":
+            print(f"  │ Güvenlik: {headers.get('score', 0)}% ({headers.get('found', 0)}/{headers.get('found', 0) + headers.get('missing', 0)} başlık)")
+        else:
+            print(f"  │ Güvenlik: Ölçülemedi")
+        print(f"  │ Linkler: {links.get('strict_health_percentage', links.get('health_percentage', 100))}% ({links.get('broken_strict', links.get('broken', 0))} kalıcı kırık)")
         print(f"  │ SEO: {seo.get('score', 0)}% ({seo.get('grade', 'N/A')})")
         print(f"  ────────────────────────────────────")
     

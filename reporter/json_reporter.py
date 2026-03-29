@@ -179,12 +179,19 @@ class JSONReporter:
         # Temel istatistikler
         total_pages = len(pages)
         pages_with_content = sum(1 for p in pages if p.get("has_content"))
+        pages_with_analysis = sum(1 for p in pages if p.get("analysis"))
+        fetch_success_pages = sum(1 for p in pages if 200 <= int(p.get("status_code", 0) or 0) < 400)
         
         # Güvenlik skorları
         security_scores = []
         seo_scores = []
         overall_scores = []
         total_broken_links = 0
+        total_broken_strict = 0
+        total_rate_limited = 0
+        total_transient_network = 0
+        total_server_error = 0
+        header_measured_pages = 0
         total_scenarios = 0
         
         for page in pages:
@@ -195,6 +202,8 @@ class JSONReporter:
                 headers = analysis.get("headers", {})
                 if headers.get("score") is not None:
                     security_scores.append(headers["score"])
+                if headers.get("measurement_status") == "measured":
+                    header_measured_pages += 1
                 
                 # SEO
                 seo = analysis.get("seo", {})
@@ -208,6 +217,11 @@ class JSONReporter:
                 
                 # Kırık linkler
                 total_broken_links += len(analysis.get("broken_links", []))
+                link_summary = analysis.get("links_summary", {})
+                total_broken_strict += link_summary.get("broken_strict", 0)
+                total_rate_limited += link_summary.get("rate_limited", 0)
+                total_transient_network += link_summary.get("transient_network", 0)
+                total_server_error += link_summary.get("server_error", 0)
             
             # Senaryolar
             total_scenarios += len(page.get("scenarios", []))
@@ -216,6 +230,10 @@ class JSONReporter:
         avg_security = round(sum(security_scores) / len(security_scores), 1) if security_scores else 0
         avg_seo = round(sum(seo_scores) / len(seo_scores), 1) if seo_scores else 0
         avg_overall = round(sum(overall_scores) / len(overall_scores), 1) if overall_scores else 0
+        fetch_success_rate = round((fetch_success_pages / total_pages) * 100, 1) if total_pages else 0
+        html_availability_rate = round((pages_with_content / total_pages) * 100, 1) if total_pages else 0
+        analysis_coverage_rate = round((pages_with_analysis / total_pages) * 100, 1) if total_pages else 0
+        header_measurement_rate = round((header_measured_pages / pages_with_analysis) * 100, 1) if pages_with_analysis else 0
         
         # Grade hesapla
         def get_grade(score):
@@ -227,9 +245,20 @@ class JSONReporter:
         return {
             "total_pages": total_pages,
             "pages_analyzed": pages_with_content,
+            "pages_with_analysis": pages_with_analysis,
             "pages_skipped": total_pages - pages_with_content,
             "total_broken_links": total_broken_links,
+            "total_broken_strict": total_broken_strict,
+            "total_rate_limited": total_rate_limited,
+            "total_transient_network": total_transient_network,
+            "total_server_error": total_server_error,
             "total_scenarios": total_scenarios,
+            "data_quality": {
+                "fetch_success_rate": fetch_success_rate,
+                "html_availability_rate": html_availability_rate,
+                "analysis_coverage_rate": analysis_coverage_rate,
+                "header_measurement_rate": header_measurement_rate
+            },
             "average_scores": {
                 "security": avg_security,
                 "seo": avg_seo,
