@@ -45,7 +45,10 @@ class LLMRunner:
         self.analysis_dir = analysis_dir
         self.scenarios_dir = scenarios_dir
         self.verbose = verbose
-        self.scenario_max_pages = scenario_max_pages
+        try:
+            self.scenario_max_pages = int(scenario_max_pages)
+        except (TypeError, ValueError):
+            self.scenario_max_pages = 0
         
         # Bileşenleri başlat
         self.prompt_builder = PromptBuilder()
@@ -101,7 +104,7 @@ class LLMRunner:
         
         print(
             f"[LLM] {len(analysis_files)} sayfa için senaryo üretilecek..."
-            f" (scenario_max_pages={self.scenario_max_pages or 'unlimited'})"
+            f" (scenario_max_pages={self.scenario_max_pages})"
         )
         if self.verbose:
             print("=" * 50)
