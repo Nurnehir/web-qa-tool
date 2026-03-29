@@ -90,15 +90,32 @@ class HeaderChecker:
             "score": 0,
             "max_score": len(self.SECURITY_HEADERS),
             "details": [],
+            "measurement_status": "not_measured",
+            "error_type": None,
             "error": None
         }
         
         # Başlıkları al
-        headers = cached_headers if cached_headers else self._fetch_headers(url)
+        headers = cached_headers if cached_headers else None
+        if not headers:
+            headers = self._fetch_headers(url)
         
         if headers is None:
             result["error"] = "Başlıklar alınamadı"
+            result["error_type"] = "unavailable"
+            result["percentage"] = None
+            result["summary"] = {
+                "csp": None,
+                "hsts": None,
+                "x_frame_options": None,
+                "x_content_type_options": None,
+                "x_xss_protection": None,
+                "referrer_policy": None,
+                "permissions_policy": None
+            }
+            # Ölçüm yapılamadığı için başlıkları eksik saymayız.
             return result
+        result["measurement_status"] = "measured"
         
         # Başlıkları küçük harfe çevir (case-insensitive karşılaştırma için)
         headers_lower = {k.lower(): v for k, v in headers.items()}
@@ -167,8 +184,12 @@ class HeaderChecker:
                 return None
             
             with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
+                # Önce HEAD ile dene.
                 response = client.head(url)
-                return dict(response.headers)
+                if response.status_code in (405, 501, 403):
+                    # Bazı sunucular HEAD'e izin vermez; GET fallback.
+                    response = client.get(url)
+                return dict(response.headers) if response.headers else None
                 
         except httpx.TimeoutException:
             print(f"[HEADER_CHECKER] Zaman aşımı: {url}")
