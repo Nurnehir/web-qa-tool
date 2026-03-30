@@ -109,7 +109,15 @@ def run_analysis(target_url: str, max_pages: int):
         # Crawl başlat
         send_event(1, "Web Sitesi Taranıyor", "running", 10, f"Tarama başlatıldı: {target_url}")
         
-        crawl_result = crawler.crawl(target_url=target_url, max_pages=max_pages)
+        crawl_result = crawler.crawl(
+            target_url=target_url,
+            max_pages=max_pages,
+            depth=int(config.get("crawl_depth", 1)),
+            include_subdomains=bool(config.get("include_subdomains", False)),
+            include_external_links=bool(config.get("include_external_links", False)),
+            formats=config.get("crawl_formats", ["html", "markdown"]),
+            render=bool(config.get("render", True))
+        )
         
         if not crawl_result:
             send_event(1, "Web Sitesi Taranıyor", "error", 15, "Tarama başarısız!")
@@ -117,6 +125,13 @@ def run_analysis(target_url: str, max_pages: int):
             analysis_status["running"] = False
             return
         
+        # API beklenenden fazla kayıt dönerse hard cap uygula.
+        records = crawl_result.get("records", [])
+        if isinstance(records, list) and len(records) > max_pages:
+            records = records[:max_pages]
+            crawl_result["records"] = records
+            crawl_result["pages"] = records
+
         # Sayfaları kaydet
         saver = PageSaver()
         saved_pages = saver.save_pages(crawl_result)
@@ -137,7 +152,14 @@ def run_analysis(target_url: str, max_pages: int):
         analysis_status["current_step"] = 2
         send_event(2, "Statik Analiz", "running", 30, "Güvenlik, Link ve SEO analizi başlatılıyor...")
         
-        analyzer = AnalyzerRunner()
+        analyzer = AnalyzerRunner(
+            link_checker_options={
+                "timeout": float(config.get("link_timeout_seconds", 5.0)),
+                "max_retries": int(config.get("link_max_retries", 1)),
+                "max_links_per_page": int(config.get("max_links_per_page", 20)),
+                "check_asset_links": bool(config.get("check_asset_links", False))
+            }
+        )
         analysis_files = analyzer.run()
         
         send_event(2, "Statik Analiz", "completed", 50,
@@ -152,7 +174,8 @@ def run_analysis(target_url: str, max_pages: int):
         
         llm_runner = LLMRunner(
             ollama_url=config.get("ollama_url", "http://localhost:11434"),
-            model=config.get("ollama_model", "llama3")
+            model=config.get("ollama_model", "llama3"),
+            scenario_max_pages=int(config.get("scenario_max_pages", 0))
         )
         
         # Ollama kontrolü
